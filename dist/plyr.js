@@ -4,6 +4,354 @@ typeof navigator === "object" && (function (global, factory) {
 	(global.Plyr = factory());
 }(this, (function () { 'use strict';
 
+// ==========================================================================
+// Plyr supported types and providers
+// ==========================================================================
+
+var providers = {
+    html5: 'html5',
+    youtube: 'youtube',
+    vimeo: 'vimeo'
+};
+
+var types = {
+    audio: 'audio',
+    video: 'video'
+};
+
+// ==========================================================================
+// Plyr default config
+// ==========================================================================
+
+var defaults = {
+    // Disable
+    enabled: true,
+
+    // Custom media title
+    title: '',
+
+    // Logging to console
+    debug: false,
+
+    // Auto play (if supported)
+    autoplay: false,
+
+    // Only allow one media playing at once (vimeo only)
+    autopause: true,
+
+    // Default time to skip when rewind/fast forward
+    seekTime: 10,
+
+    // Default volume
+    volume: 1,
+    muted: false,
+
+    // Pass a custom duration
+    duration: null,
+
+    // Display the media duration on load in the current time position
+    // If you have opted to display both duration and currentTime, this is ignored
+    displayDuration: true,
+
+    // Invert the current time to be a countdown
+    invertTime: true,
+
+    // Clicking the currentTime inverts it's value to show time left rather than elapsed
+    toggleInvert: true,
+
+    // Aspect ratio (for embeds)
+    ratio: '16:9',
+
+    // Click video container to play/pause
+    clickToPlay: true,
+
+    // Auto hide the controls
+    hideControls: true,
+
+    // Reset to start when playback ended
+    resetOnEnd: false,
+
+    // Disable the standard context menu
+    disableContextMenu: true,
+
+    // Sprite (for icons)
+    loadSprite: true,
+    iconPrefix: 'plyr',
+    iconUrl: 'https://cdn.plyr.io/3.3.10/plyr.svg',
+
+    // Blank video (used to prevent errors on source change)
+    blankVideo: 'https://cdn.plyr.io/static/blank.mp4',
+
+    // Quality default
+    quality: {
+        default: 576,
+        options: [4320, 2880, 2160, 1440, 1080, 720, 576, 480, 360, 240, 'default']
+    },
+
+    // Set loops
+    loop: {
+        active: false
+        // start: null,
+        // end: null,
+    },
+
+    // Speed default and options to display
+    speed: {
+        selected: 1,
+        options: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
+    },
+
+    // Keyboard shortcut settings
+    keyboard: {
+        focused: true,
+        global: false
+    },
+
+    // Display tooltips
+    tooltips: {
+        controls: false,
+        seek: true
+    },
+
+    // Captions settings
+    captions: {
+        active: false,
+        language: 'auto',
+        // Listen to new tracks added after Plyr is initialized.
+        // This is needed for streaming captions, but may result in unselectable options
+        update: false
+    },
+
+    // Fullscreen settings
+    fullscreen: {
+        enabled: true, // Allow fullscreen?
+        fallback: true, // Fallback for vintage browsers
+        iosNative: false // Use the native fullscreen in iOS (disables custom controls)
+    },
+
+    // Local storage
+    storage: {
+        enabled: true,
+        key: 'plyr'
+    },
+
+    // Default controls
+    controls: ['play-large',
+    // 'restart',
+    // 'rewind',
+    'play',
+    // 'fast-forward',
+    'progress', 'current-time', 'mute', 'volume', 'captions', 'settings', 'pip', 'airplay', 'fullscreen'],
+    settings: ['captions', 'quality', 'speed'],
+
+    // Localisation
+    i18n: {
+        restart: 'Restart',
+        rewind: 'Rewind {seektime}s',
+        play: 'Play',
+        pause: 'Pause',
+        fastForward: 'Forward {seektime}s',
+        seek: 'Seek',
+        played: 'Played',
+        buffered: 'Buffered',
+        currentTime: 'Current time',
+        duration: 'Duration',
+        volume: 'Volume',
+        mute: 'Mute',
+        unmute: 'Unmute',
+        enableCaptions: 'Enable captions',
+        disableCaptions: 'Disable captions',
+        enterFullscreen: 'Enter fullscreen',
+        exitFullscreen: 'Exit fullscreen',
+        frameTitle: 'Player for {title}',
+        captions: 'Captions',
+        settings: 'Settings',
+        speed: 'Speed',
+        normal: 'Normal',
+        quality: 'Quality',
+        loop: 'Loop',
+        start: 'Start',
+        end: 'End',
+        all: 'All',
+        reset: 'Reset',
+        disabled: 'Disabled',
+        enabled: 'Enabled',
+        advertisement: 'Ad',
+        qualityBadge: {
+            2160: '4K',
+            1440: 'HD',
+            1080: 'HD',
+            720: 'HD',
+            576: 'SD',
+            480: 'SD'
+        }
+    },
+
+    // URLs
+    urls: {
+        vimeo: {
+            sdk: 'https://player.vimeo.com/api/player.js',
+            iframe: 'https://player.vimeo.com/video/{0}?{1}',
+            api: 'https://vimeo.com/api/v2/video/{0}.json'
+        },
+        youtube: {
+            sdk: 'https://www.youtube.com/iframe_api',
+            api: 'https://www.googleapis.com/youtube/v3/videos?id={0}&key={1}&fields=items(snippet(title))&part=snippet'
+        },
+        googleIMA: {
+            sdk: 'https://imasdk.googleapis.com/js/sdkloader/ima3.js'
+        }
+    },
+
+    // Custom control listeners
+    listeners: {
+        seek: null,
+        play: null,
+        pause: null,
+        restart: null,
+        rewind: null,
+        fastForward: null,
+        mute: null,
+        volume: null,
+        captions: null,
+        fullscreen: null,
+        pip: null,
+        airplay: null,
+        speed: null,
+        quality: null,
+        loop: null,
+        language: null
+    },
+
+    // Events to watch and bubble
+    events: [
+    // Events to watch on HTML5 media elements and bubble
+    // https://developer.mozilla.org/en/docs/Web/Guide/Events/Media_events
+    'ended', 'progress', 'stalled', 'playing', 'waiting', 'canplay', 'canplaythrough', 'loadstart', 'loadeddata', 'loadedmetadata', 'timeupdate', 'volumechange', 'play', 'pause', 'error', 'seeking', 'seeked', 'emptied', 'ratechange', 'cuechange',
+
+    // Custom events
+    'enterfullscreen', 'exitfullscreen', 'captionsenabled', 'captionsdisabled', 'languagechange', 'controlshidden', 'controlsshown', 'ready',
+
+    // YouTube
+    'statechange', 'qualitychange', 'qualityrequested',
+
+    // Ads
+    'adsloaded', 'adscontentpause', 'adscontentresume', 'adstarted', 'adsmidpoint', 'adscomplete', 'adsallcomplete', 'adsimpression', 'adsclick'],
+
+    // Selectors
+    // Change these to match your template if using custom HTML
+    selectors: {
+        editable: 'input, textarea, select, [contenteditable]',
+        container: '.plyr',
+        controls: {
+            container: null,
+            wrapper: '.plyr__controls'
+        },
+        labels: '[data-plyr]',
+        buttons: {
+            play: '[data-plyr="play"]',
+            pause: '[data-plyr="pause"]',
+            restart: '[data-plyr="restart"]',
+            rewind: '[data-plyr="rewind"]',
+            fastForward: '[data-plyr="fast-forward"]',
+            mute: '[data-plyr="mute"]',
+            captions: '[data-plyr="captions"]',
+            fullscreen: '[data-plyr="fullscreen"]',
+            pip: '[data-plyr="pip"]',
+            airplay: '[data-plyr="airplay"]',
+            settings: '[data-plyr="settings"]',
+            loop: '[data-plyr="loop"]'
+        },
+        inputs: {
+            seek: '[data-plyr="seek"]',
+            volume: '[data-plyr="volume"]',
+            speed: '[data-plyr="speed"]',
+            language: '[data-plyr="language"]',
+            quality: '[data-plyr="quality"]'
+        },
+        display: {
+            currentTime: '.plyr__time--current',
+            duration: '.plyr__time--duration',
+            buffer: '.plyr__progress__buffer',
+            loop: '.plyr__progress__loop', // Used later
+            volume: '.plyr__volume--display'
+        },
+        progress: '.plyr__progress',
+        captions: '.plyr__captions',
+        menu: {
+            quality: '.js-plyr__menu__list--quality'
+        }
+    },
+
+    // Class hooks added to the player in different states
+    classNames: {
+        type: 'plyr--{0}',
+        provider: 'plyr--{0}',
+        video: 'plyr__video-wrapper',
+        embed: 'plyr__video-embed',
+        embedContainer: 'plyr__video-embed__container',
+        poster: 'plyr__poster',
+        posterEnabled: 'plyr__poster-enabled',
+        ads: 'plyr__ads',
+        control: 'plyr__control',
+        playing: 'plyr--playing',
+        paused: 'plyr--paused',
+        stopped: 'plyr--stopped',
+        loading: 'plyr--loading',
+        hover: 'plyr--hover',
+        tooltip: 'plyr__tooltip',
+        cues: 'plyr__cues',
+        hidden: 'plyr__sr-only',
+        hideControls: 'plyr--hide-controls',
+        isIos: 'plyr--is-ios',
+        isTouch: 'plyr--is-touch',
+        uiSupported: 'plyr--full-ui',
+        noTransition: 'plyr--no-transition',
+        menu: {
+            value: 'plyr__menu__value',
+            badge: 'plyr__badge',
+            open: 'plyr--menu-open'
+        },
+        captions: {
+            enabled: 'plyr--captions-enabled',
+            active: 'plyr--captions-active'
+        },
+        fullscreen: {
+            enabled: 'plyr--fullscreen-enabled',
+            fallback: 'plyr--fullscreen-fallback'
+        },
+        pip: {
+            supported: 'plyr--pip-supported',
+            active: 'plyr--pip-active'
+        },
+        airplay: {
+            supported: 'plyr--airplay-supported',
+            active: 'plyr--airplay-active'
+        },
+        tabFocus: 'plyr__tab-focus'
+    },
+
+    // Embed attributes
+    attributes: {
+        embed: {
+            provider: 'data-plyr-provider',
+            id: 'data-plyr-embed-id'
+        }
+    },
+
+    // API keys
+    keys: {
+        google: null
+    },
+
+    // Advertisements plugin
+    // Register for an account here: http://vi.ai/publisher-video-monetization/?aid=plyrio
+    ads: {
+        enabled: false,
+        publisherId: ''
+    }
+};
+
 var commonjsGlobal = typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
 
 function createCommonjsModule(fn, module) {
@@ -393,105 +741,12 @@ var toConsumableArray = function (arr) {
 
 // ==========================================================================
 
-var Storage = function () {
-    function Storage(player) {
-        classCallCheck(this, Storage);
-
-        this.enabled = player.config.storage.enabled;
-        this.key = player.config.storage.key;
-    }
-
-    // Check for actual support (see if we can use it)
-
-
-    createClass(Storage, [{
-        key: 'get',
-        value: function get$$1(key) {
-            if (!Storage.supported || !this.enabled) {
-                return null;
-            }
-
-            var store = window.localStorage.getItem(this.key);
-
-            if (utils.is.empty(store)) {
-                return null;
-            }
-
-            var json = JSON.parse(store);
-
-            return utils.is.string(key) && key.length ? json[key] : json;
-        }
-    }, {
-        key: 'set',
-        value: function set$$1(object) {
-            // Bail if we don't have localStorage support or it's disabled
-            if (!Storage.supported || !this.enabled) {
-                return;
-            }
-
-            // Can only store objectst
-            if (!utils.is.object(object)) {
-                return;
-            }
-
-            // Get current storage
-            var storage = this.get();
-
-            // Default to empty object
-            if (utils.is.empty(storage)) {
-                storage = {};
-            }
-
-            // Update the working copy of the values
-            utils.extend(storage, object);
-
-            // Update storage
-            window.localStorage.setItem(this.key, JSON.stringify(storage));
-        }
-    }], [{
-        key: 'supported',
-        get: function get$$1() {
-            try {
-                if (!('localStorage' in window)) {
-                    return false;
-                }
-
-                var test = '___test';
-
-                // Try to use it (it might be disabled, e.g. user is in private mode)
-                // see: https://github.com/sampotts/plyr/issues/131
-                window.localStorage.setItem(test, test);
-                window.localStorage.removeItem(test);
-
-                return true;
-            } catch (e) {
-                return false;
-            }
-        }
-    }]);
-    return Storage;
-}();
-
-// ==========================================================================
-// Plyr supported types and providers
-// ==========================================================================
-
-var providers = {
-    html5: 'html5',
-    youtube: 'youtube',
-    vimeo: 'vimeo'
-};
-
-var types = {
-    audio: 'audio',
-    video: 'video'
-};
-
-// ==========================================================================
-
 var utils = {
     // Check variable types
     is: {
+        plyr: function plyr(input) {
+            return this.instanceof(input, window.Plyr);
+        },
         object: function object(input) {
             return this.getConstructor(input) === Object;
         },
@@ -511,19 +766,19 @@ var utils = {
             return !this.nullOrUndefined(input) && Array.isArray(input);
         },
         weakMap: function weakMap(input) {
-            return this.instanceof(input, WeakMap);
+            return this.instanceof(input, window.WeakMap);
         },
         nodeList: function nodeList(input) {
-            return this.instanceof(input, NodeList);
+            return this.instanceof(input, window.NodeList);
         },
         element: function element(input) {
-            return this.instanceof(input, Element);
+            return this.instanceof(input, window.Element);
         },
         textNode: function textNode(input) {
             return this.getConstructor(input) === Text;
         },
         event: function event(input) {
-            return this.instanceof(input, Event);
+            return this.instanceof(input, window.Event);
         },
         cue: function cue(input) {
             return this.instanceof(input, window.TextTrackCue) || this.instanceof(input, window.VTTCue);
@@ -602,24 +857,6 @@ var utils = {
     },
 
 
-    // Load image avoiding xhr/fetch CORS issues
-    // Server status can't be obtained this way unfortunately, so this uses "naturalWidth" to determine if the image has loaded.
-    // By default it checks if it is at least 1px, but you can add a second argument to change this.
-    loadImage: function loadImage(src) {
-        var minWidth = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 1;
-
-        return new Promise(function (resolve, reject) {
-            var image = new Image();
-            var handler = function handler() {
-                delete image.onload;
-                delete image.onerror;
-                (image.naturalWidth >= minWidth ? resolve : reject)(image);
-            };
-            Object.assign(image, { onload: handler, onerror: handler, src: src });
-        });
-    },
-
-
     // Load an external script
     loadScript: function loadScript(url) {
         return new Promise(function (resolve, reject) {
@@ -660,8 +897,6 @@ var utils = {
 
         // Only load once if ID set
         if (!hasId || !exists()) {
-            var useStorage = Storage.supported;
-
             // Create container
             var container = document.createElement('div');
             utils.toggleHidden(container, true);
@@ -671,7 +906,7 @@ var utils = {
             }
 
             // Check in cache
-            if (useStorage) {
+            if (support.storage) {
                 var cached = window.localStorage.getItem(prefix + id);
                 isCached = cached !== null;
 
@@ -688,7 +923,7 @@ var utils = {
                     return;
                 }
 
-                if (useStorage) {
+                if (support.storage) {
                     window.localStorage.setItem(prefix + id, JSON.stringify({
                         content: result
                     }));
@@ -748,7 +983,7 @@ var utils = {
 
         // Add text node
         if (utils.is.string(text)) {
-            element.innerText = text;
+            element.textContent = text;
         }
 
         // Return built element
@@ -769,14 +1004,14 @@ var utils = {
     },
 
 
-    // Remove element(s)
+    // Remove an element
     removeElement: function removeElement(element) {
-        if (utils.is.nodeList(element) || utils.is.array(element)) {
-            Array.from(element).forEach(utils.removeElement);
+        if (!utils.is.element(element) || !utils.is.element(element.parentNode)) {
             return;
         }
 
-        if (!utils.is.element(element) || !utils.is.element(element.parentNode)) {
+        if (utils.is.nodeList(element) || utils.is.array(element)) {
+            Array.from(element).forEach(utils.removeElement);
             return;
         }
 
@@ -902,16 +1137,14 @@ var utils = {
     },
 
 
-    // Mirror Element.classList.toggle, with IE compatibility for "force" argument
-    toggleClass: function toggleClass(element, className, force) {
+    // Toggle class on an element
+    toggleClass: function toggleClass(element, className, toggle) {
         if (utils.is.element(element)) {
-            var method = 'toggle';
-            if (typeof force !== 'undefined') {
-                method = force ? 'add' : 'remove';
-            }
+            var contains = element.classList.contains(className);
 
-            element.classList[method](className);
-            return element.classList.contains(className);
+            element.classList[toggle ? 'add' : 'remove'](className);
+
+            return toggle && !contains || !toggle && contains;
         }
 
         return null;
@@ -947,6 +1180,61 @@ var utils = {
     // Find a single element
     getElement: function getElement(selector) {
         return this.elements.container.querySelector(selector);
+    },
+
+
+    // Find the UI controls and store references in custom controls
+    // TODO: Allow settings menus with custom controls
+    findElements: function findElements() {
+        try {
+            this.elements.controls = utils.getElement.call(this, this.config.selectors.controls.wrapper);
+
+            // Buttons
+            this.elements.buttons = {
+                play: utils.getElements.call(this, this.config.selectors.buttons.play),
+                pause: utils.getElement.call(this, this.config.selectors.buttons.pause),
+                restart: utils.getElement.call(this, this.config.selectors.buttons.restart),
+                rewind: utils.getElement.call(this, this.config.selectors.buttons.rewind),
+                fastForward: utils.getElement.call(this, this.config.selectors.buttons.fastForward),
+                mute: utils.getElement.call(this, this.config.selectors.buttons.mute),
+                pip: utils.getElement.call(this, this.config.selectors.buttons.pip),
+                airplay: utils.getElement.call(this, this.config.selectors.buttons.airplay),
+                settings: utils.getElement.call(this, this.config.selectors.buttons.settings),
+                captions: utils.getElement.call(this, this.config.selectors.buttons.captions),
+                fullscreen: utils.getElement.call(this, this.config.selectors.buttons.fullscreen)
+            };
+
+            // Progress
+            this.elements.progress = utils.getElement.call(this, this.config.selectors.progress);
+
+            // Inputs
+            this.elements.inputs = {
+                seek: utils.getElement.call(this, this.config.selectors.inputs.seek),
+                volume: utils.getElement.call(this, this.config.selectors.inputs.volume)
+            };
+
+            // Display
+            this.elements.display = {
+                buffer: utils.getElement.call(this, this.config.selectors.display.buffer),
+                currentTime: utils.getElement.call(this, this.config.selectors.display.currentTime),
+                duration: utils.getElement.call(this, this.config.selectors.display.duration)
+            };
+
+            // Seek tooltip
+            if (utils.is.element(this.elements.progress)) {
+                this.elements.display.seekTooltip = this.elements.progress.querySelector('.' + this.config.classNames.tooltip);
+            }
+
+            return true;
+        } catch (error) {
+            // Log it
+            this.debug.warn('It looks like there is a problem with your custom controls HTML', error);
+
+            // Restore native video controls
+            this.toggleNativeControls(true);
+
+            return false;
+        }
     },
 
 
@@ -1047,6 +1335,9 @@ var utils = {
 
         // If a single node is passed, bind the event listener
         events.forEach(function (type) {
+            if (!utils.elementsWithListeners) utils.elementsWithListeners = [];
+            if (toggle) utils.elementsWithListeners.push({ elements: elements, type: type, callback: callback, options: options });
+
             elements[toggle ? 'addEventListener' : 'removeEventListener'](type, callback, options);
         });
     },
@@ -1089,7 +1380,7 @@ var utils = {
         var event = new CustomEvent(type, {
             bubbles: bubbles,
             detail: Object.assign({}, detail, {
-                plyr: this
+                plyr: utils.is.plyr(this) ? this : null
             })
         });
 
@@ -1120,22 +1411,6 @@ var utils = {
 
         // Set the attribute on target
         element.setAttribute('aria-pressed', state);
-    },
-
-
-    // Format string
-    format: function format(input) {
-        for (var _len = arguments.length, args = Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
-            args[_key - 1] = arguments[_key];
-        }
-
-        if (utils.is.empty(input)) {
-            return input;
-        }
-
-        return input.toString().replace(/{(\d+)}/g, function (match, i) {
-            return utils.is.string(args[i]) ? args[i] : '';
-        });
     },
 
 
@@ -1252,8 +1527,8 @@ var utils = {
     extend: function extend() {
         var target = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 
-        for (var _len2 = arguments.length, sources = Array(_len2 > 1 ? _len2 - 1 : 0), _key2 = 1; _key2 < _len2; _key2++) {
-            sources[_key2 - 1] = arguments[_key2];
+        for (var _len = arguments.length, sources = Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
+            sources[_key - 1] = arguments[_key];
         }
 
         if (!sources.length) {
@@ -1294,20 +1569,6 @@ var utils = {
     },
 
 
-    // Clone nested objects
-    cloneDeep: function cloneDeep(object) {
-        return JSON.parse(JSON.stringify(object));
-    },
-
-
-    // Get a nested value in an object
-    getDeep: function getDeep(object, path) {
-        return path.split('.').reduce(function (obj, key) {
-            return obj && obj[key];
-        }, object);
-    },
-
-
     // Get the closest value in an array
     closest: function closest(array, value) {
         if (!utils.is.array(array) || !array.length) {
@@ -1328,7 +1589,7 @@ var utils = {
         }
 
         // Vimeo
-        if (/^https?:\/\/player.vimeo.com\/video\/\d{0,9}(?=\b|\/)/.test(url)) {
+        if (/^https?:\/\/player.vimeo.com\/video\/\d{8,}(?=\b|\/)/.test(url)) {
             return providers.vimeo;
         }
 
@@ -1620,6 +1881,573 @@ var support = {
 };
 
 // ==========================================================================
+// Console wrapper
+// ==========================================================================
+
+var noop = function noop() {};
+
+var Console = function () {
+    function Console() {
+        var enabled = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : false;
+        classCallCheck(this, Console);
+
+        this.enabled = window.console && enabled;
+
+        if (this.enabled) {
+            this.log('Debugging enabled');
+        }
+    }
+
+    createClass(Console, [{
+        key: 'log',
+        get: function get$$1() {
+            // eslint-disable-next-line no-console
+            return this.enabled ? Function.prototype.bind.call(console.log, console) : noop;
+        }
+    }, {
+        key: 'warn',
+        get: function get$$1() {
+            // eslint-disable-next-line no-console
+            return this.enabled ? Function.prototype.bind.call(console.warn, console) : noop;
+        }
+    }, {
+        key: 'error',
+        get: function get$$1() {
+            // eslint-disable-next-line no-console
+            return this.enabled ? Function.prototype.bind.call(console.error, console) : noop;
+        }
+    }]);
+    return Console;
+}();
+
+// ==========================================================================
+
+var browser = utils.getBrowser();
+
+function onChange() {
+    if (!this.enabled) {
+        return;
+    }
+
+    // Update toggle button
+    var button = this.player.elements.buttons.fullscreen;
+    if (utils.is.element(button)) {
+        utils.toggleState(button, this.active);
+    }
+
+    // Trigger an event
+    utils.dispatchEvent.call(this.player, this.target, this.active ? 'enterfullscreen' : 'exitfullscreen', true);
+
+    // Trap focus in container
+    if (!browser.isIos) {
+        utils.trapFocus.call(this.player, this.target, this.active);
+    }
+}
+
+function toggleFallback() {
+    var toggle = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : false;
+
+    // Store or restore scroll position
+    if (toggle) {
+        this.scrollPosition = {
+            x: window.scrollX || 0,
+            y: window.scrollY || 0
+        };
+    } else {
+        window.scrollTo(this.scrollPosition.x, this.scrollPosition.y);
+    }
+
+    // Toggle scroll
+    document.body.style.overflow = toggle ? 'hidden' : '';
+
+    // Toggle class hook
+    utils.toggleClass(this.target, this.player.config.classNames.fullscreen.fallback, toggle);
+
+    // Toggle button and fire events
+    onChange.call(this);
+}
+
+var Fullscreen = function () {
+    function Fullscreen(player) {
+        var _this = this;
+
+        classCallCheck(this, Fullscreen);
+
+        // Keep reference to parent
+        this.player = player;
+
+        // Get prefix
+        this.prefix = Fullscreen.prefix;
+        this.property = Fullscreen.property;
+
+        // Scroll position
+        this.scrollPosition = { x: 0, y: 0 };
+
+        // Register event listeners
+        // Handle event (incase user presses escape etc)
+        utils.on(document, this.prefix === 'ms' ? 'MSFullscreenChange' : this.prefix + 'fullscreenchange', function () {
+            // TODO: Filter for target??
+            onChange.call(_this);
+        });
+
+        // Fullscreen toggle on double click
+        utils.on(this.player.elements.container, 'dblclick', function (event) {
+            // Ignore double click in controls
+            if (utils.is.element(_this.player.elements.controls) && _this.player.elements.controls.contains(event.target)) {
+                return;
+            }
+
+            _this.toggle();
+        });
+
+        // Update the UI
+        this.update();
+    }
+
+    // Determine if native supported
+
+
+    createClass(Fullscreen, [{
+        key: 'update',
+
+
+        // Update UI
+        value: function update() {
+            if (this.enabled) {
+                this.player.debug.log((Fullscreen.native ? 'Native' : 'Fallback') + ' fullscreen enabled');
+            } else {
+                this.player.debug.log('Fullscreen not supported and fallback disabled');
+            }
+
+            // Add styling hook to show button
+            utils.toggleClass(this.player.elements.container, this.player.config.classNames.fullscreen.enabled, this.enabled);
+        }
+
+        // Make an element fullscreen
+
+    }, {
+        key: 'enter',
+        value: function enter() {
+            if (!this.enabled) {
+                return;
+            }
+
+            // iOS native fullscreen doesn't need the request step
+            if (browser.isIos && this.player.config.fullscreen.iosNative) {
+                if (this.player.playing) {
+                    this.target.webkitEnterFullscreen();
+                }
+            } else if (!Fullscreen.native) {
+                toggleFallback.call(this, true);
+            } else if (!this.prefix) {
+                this.target.requestFullscreen();
+            } else if (!utils.is.empty(this.prefix)) {
+                this.target[this.prefix + 'Request' + this.property]();
+            }
+        }
+
+        // Bail from fullscreen
+
+    }, {
+        key: 'exit',
+        value: function exit() {
+            if (!this.enabled) {
+                return;
+            }
+
+            // iOS native fullscreen
+            if (browser.isIos && this.player.config.fullscreen.iosNative) {
+                this.target.webkitExitFullscreen();
+                this.player.play();
+            } else if (!Fullscreen.native) {
+                toggleFallback.call(this, false);
+            } else if (!this.prefix) {
+                (document.cancelFullScreen || document.exitFullscreen).call(document);
+            } else if (!utils.is.empty(this.prefix)) {
+                var action = this.prefix === 'moz' ? 'Cancel' : 'Exit';
+                document['' + this.prefix + action + this.property]();
+            }
+        }
+
+        // Toggle state
+
+    }, {
+        key: 'toggle',
+        value: function toggle() {
+            if (!this.active) {
+                this.enter();
+            } else {
+                this.exit();
+            }
+        }
+    }, {
+        key: 'enabled',
+
+
+        // Determine if fullscreen is enabled
+        get: function get$$1() {
+            return (Fullscreen.native || this.player.config.fullscreen.fallback) && this.player.config.fullscreen.enabled && this.player.supported.ui && this.player.isVideo;
+        }
+
+        // Get active state
+
+    }, {
+        key: 'active',
+        get: function get$$1() {
+            if (!this.enabled) {
+                return false;
+            }
+
+            // Fallback using classname
+            if (!Fullscreen.native) {
+                return utils.hasClass(this.target, this.player.config.classNames.fullscreen.fallback);
+            }
+
+            var element = !this.prefix ? document.fullscreenElement : document['' + this.prefix + this.property + 'Element'];
+
+            return element === this.target;
+        }
+
+        // Get target element
+
+    }, {
+        key: 'target',
+        get: function get$$1() {
+            return browser.isIos && this.player.config.fullscreen.iosNative ? this.player.media : this.player.elements.container;
+        }
+    }], [{
+        key: 'native',
+        get: function get$$1() {
+            return !!(document.fullscreenEnabled || document.webkitFullscreenEnabled || document.mozFullScreenEnabled || document.msFullscreenEnabled);
+        }
+
+        // Get the prefix for handlers
+
+    }, {
+        key: 'prefix',
+        get: function get$$1() {
+            // No prefix
+            if (utils.is.function(document.exitFullscreen)) {
+                return '';
+            }
+
+            // Check for fullscreen support by vendor prefix
+            var value = '';
+            var prefixes = ['webkit', 'moz', 'ms'];
+
+            prefixes.some(function (pre) {
+                if (utils.is.function(document[pre + 'ExitFullscreen']) || utils.is.function(document[pre + 'CancelFullScreen'])) {
+                    value = pre;
+                    return true;
+                }
+
+                return false;
+            });
+
+            return value;
+        }
+    }, {
+        key: 'property',
+        get: function get$$1() {
+            return this.prefix === 'moz' ? 'FullScreen' : 'Fullscreen';
+        }
+    }]);
+    return Fullscreen;
+}();
+
+// ==========================================================================
+
+var i18n = {
+    get: function get$$1() {
+        var key = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : '';
+        var config = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+
+        if (utils.is.empty(key) || utils.is.empty(config)) {
+            return '';
+        }
+
+        var string = utils.getDeep(config.i18n, key);
+
+        if (utils.is.empty(string)) {
+            return '';
+        }
+
+        var replace = {
+            '{seektime}': config.seekTime,
+            '{title}': config.title
+        };
+
+        Object.entries(replace).forEach(function (_ref) {
+            var _ref2 = slicedToArray(_ref, 2),
+                key = _ref2[0],
+                value = _ref2[1];
+
+            string = utils.replaceAll(string, key, value);
+        });
+
+        return string;
+    }
+};
+
+// ==========================================================================
+
+var captions = {
+    // Setup captions
+    setup: function setup() {
+        // Requires UI support
+        if (!this.supported.ui) {
+            return;
+        }
+
+        // Only Vimeo and HTML5 video supported at this point
+        if (!this.isVideo || this.isYouTube || this.isHTML5 && !support.textTracks) {
+            // Clear menu and hide
+            if (utils.is.array(this.config.controls) && this.config.controls.includes('settings') && this.config.settings.includes('captions')) {
+                controls.setCaptionsMenu.call(this);
+            }
+
+            return;
+        }
+
+        // Inject the container
+        if (!utils.is.element(this.elements.captions)) {
+            this.elements.captions = utils.createElement('div', utils.getAttributesFromSelector(this.config.selectors.captions));
+
+            utils.insertAfter(this.elements.captions, this.elements.wrapper);
+        }
+
+        // Get browser info
+        var browser = utils.getBrowser();
+
+        // Fix IE captions if CORS is used
+        // Fetch captions and inject as blobs instead (data URIs not supported!)
+        if (browser.isIE && window.URL) {
+            var elements = this.media.querySelectorAll('track');
+
+            Array.from(elements).forEach(function (track) {
+                var src = track.getAttribute('src');
+                var href = utils.parseUrl(src);
+
+                if (href.hostname !== window.location.href.hostname && ['http:', 'https:'].includes(href.protocol)) {
+                    utils.fetch(src, 'blob').then(function (blob) {
+                        track.setAttribute('src', window.URL.createObjectURL(blob));
+                    }).catch(function () {
+                        utils.removeElement(track);
+                    });
+                }
+            });
+        }
+
+        // Try to load the value from storage
+        var active = this.storage.get('captions');
+
+        // Otherwise fall back to the default config
+        if (!utils.is.boolean(active)) {
+            active = this.config.captions.active;
+        }
+
+        // Set toggled state
+        this.toggleCaptions(active);
+
+        // Watch changes to textTracks and update captions menu
+        if (this.config.captions.update) {
+            utils.on(this.media.textTracks, 'addtrack removetrack', captions.update.bind(this));
+        }
+
+        // Update available languages in list next tick (the event must not be triggered before the listeners)
+        setTimeout(captions.update.bind(this), 0);
+    },
+    update: function update() {
+        // Update tracks
+        var tracks = captions.getTracks.call(this);
+        this.options.captions = tracks.map(function (_ref) {
+            var language = _ref.language;
+            return language;
+        });
+
+        // Set language if it hasn't been set already
+        if (!this.language) {
+            var language = this.config.captions.language;
+
+            if (language === 'auto') {
+                var _split = (navigator.language || navigator.userLanguage).split('-');
+
+                var _split2 = slicedToArray(_split, 1);
+
+                language = _split2[0];
+            }
+            this.language = this.storage.get('language') || (language || '').toLowerCase();
+        }
+
+        // Toggle the class hooks
+        utils.toggleClass(this.elements.container, this.config.classNames.captions.enabled, !utils.is.empty(captions.getTracks.call(this)));
+
+        // Update available languages in list
+        if ((this.config.controls || []).includes('settings') && this.config.settings.includes('captions')) {
+            controls.setCaptionsMenu.call(this);
+        }
+    },
+
+
+    // Set the captions language
+    setLanguage: function setLanguage() {
+        var _this = this;
+
+        // Setup HTML5 track rendering
+        if (this.isHTML5 && this.isVideo) {
+            captions.getTracks.call(this).forEach(function (track) {
+                // Show track
+                utils.on(track, 'cuechange', function (event) {
+                    return captions.setCue.call(_this, event);
+                });
+
+                // Turn off native caption rendering to avoid double captions
+                // eslint-disable-next-line
+                track.mode = 'hidden';
+            });
+
+            // Get current track
+            var currentTrack = captions.getCurrentTrack.call(this);
+
+            // Check if suported kind
+            if (utils.is.track(currentTrack)) {
+                // If we change the active track while a cue is already displayed we need to update it
+                if (Array.from(currentTrack.activeCues || []).length) {
+                    captions.setCue.call(this, currentTrack);
+                }
+            }
+        } else if (this.isVimeo && this.captions.active) {
+            this.embed.enableTextTrack(this.language);
+        }
+    },
+
+
+    // Get the tracks
+    getTracks: function getTracks() {
+        // Return empty array at least
+        if (utils.is.nullOrUndefined(this.media)) {
+            return [];
+        }
+
+        // Only get accepted kinds
+        return Array.from(this.media.textTracks || []).filter(function (track) {
+            return ['captions', 'subtitles'].includes(track.kind);
+        });
+    },
+
+
+    // Get the current track for the current language
+    getCurrentTrack: function getCurrentTrack() {
+        var _this2 = this;
+
+        var tracks = captions.getTracks.call(this);
+
+        if (!tracks.length) {
+            return null;
+        }
+
+        // Get track based on current language
+        var track = tracks.find(function (track) {
+            return track.language.toLowerCase() === _this2.language;
+        });
+
+        // Get the <track> with default attribute
+        if (!track) {
+            track = utils.getElement.call(this, 'track[default]');
+        }
+
+        // Get the first track
+        if (!track) {
+            var _tracks = slicedToArray(tracks, 1);
+
+            track = _tracks[0];
+        }
+
+        return track;
+    },
+
+
+    // Get UI label for track
+    getLabel: function getLabel(track) {
+        var currentTrack = track;
+
+        if (!utils.is.track(currentTrack) && support.textTracks && this.captions.active) {
+            currentTrack = captions.getCurrentTrack.call(this);
+        }
+
+        if (utils.is.track(currentTrack)) {
+            if (!utils.is.empty(currentTrack.label)) {
+                return currentTrack.label;
+            }
+
+            if (!utils.is.empty(currentTrack.language)) {
+                return track.language.toUpperCase();
+            }
+
+            return i18n.get('enabled', this.config);
+        }
+
+        return i18n.get('disabled', this.config);
+    },
+
+
+    // Display active caption if it contains text
+    setCue: function setCue(input) {
+        // Get the track from the event if needed
+        var track = utils.is.event(input) ? input.target : input;
+        var activeCues = track.activeCues;
+
+        var active = activeCues.length && activeCues[0];
+        var currentTrack = captions.getCurrentTrack.call(this);
+
+        // Only display current track
+        if (track !== currentTrack) {
+            return;
+        }
+
+        // Display a cue, if there is one
+        if (utils.is.cue(active)) {
+            captions.setText.call(this, active.getCueAsHTML());
+        } else {
+            captions.setText.call(this, null);
+        }
+
+        utils.dispatchEvent.call(this, this.media, 'cuechange');
+    },
+
+
+    // Set the current caption
+    setText: function setText(input) {
+        // Requires UI
+        if (!this.supported.ui) {
+            return;
+        }
+
+        if (utils.is.element(this.elements.captions)) {
+            var content = utils.createElement('span');
+
+            // Empty the container
+            utils.emptyElement(this.elements.captions);
+
+            // Default to empty
+            var caption = !utils.is.nullOrUndefined(input) ? input : '';
+
+            // Set the span content
+            if (utils.is.string(caption)) {
+                content.innerText = caption.trim();
+            } else {
+                content.appendChild(caption);
+            }
+
+            // Set new caption text
+            this.elements.captions.appendChild(content);
+        } else {
+            this.debug.warn('No captions element to render to');
+        }
+    }
+};
+
+// ==========================================================================
 
 var html5 = {
     getSources: function getSources() {
@@ -1778,49 +2606,15 @@ var html5 = {
 
 // ==========================================================================
 
-var i18n = {
-    get: function get$$1() {
-        var key = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : '';
-        var config = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
-
-        if (utils.is.empty(key) || utils.is.empty(config)) {
-            return '';
-        }
-
-        var string = utils.getDeep(config.i18n, key);
-
-        if (utils.is.empty(string)) {
-            return '';
-        }
-
-        var replace = {
-            '{seektime}': config.seekTime,
-            '{title}': config.title
-        };
-
-        Object.entries(replace).forEach(function (_ref) {
-            var _ref2 = slicedToArray(_ref, 2),
-                key = _ref2[0],
-                value = _ref2[1];
-
-            string = utils.replaceAll(string, key, value);
-        });
-
-        return string;
-    }
-};
-
-// ==========================================================================
-
 // Sniff out the browser
-var browser = utils.getBrowser();
+var browser$1 = utils.getBrowser();
 
 var controls = {
 
     // Get icon URL
     getIconUrl: function getIconUrl() {
         var url = new URL(this.config.iconUrl, window.location);
-        var cors = url.host !== window.location.host || browser.isIE && !window.svg4everybody;
+        var cors = url.host !== window.location.host || browser$1.isIE && !window.svg4everybody;
 
         return {
             url: this.config.iconUrl,
@@ -2316,7 +3110,7 @@ var controls = {
         range.setAttribute('aria-valuenow', range.value);
 
         // WebKit only
-        if (!browser.isWebkit) {
+        if (!browser$1.isWebkit) {
             return;
         }
 
@@ -3253,872 +4047,6 @@ var controls = {
         }
     }
 };
-
-// ==========================================================================
-
-var captions = {
-    // Setup captions
-    setup: function setup() {
-        // Requires UI support
-        if (!this.supported.ui) {
-            return;
-        }
-
-        // Only Vimeo and HTML5 video supported at this point
-        if (!this.isVideo || this.isYouTube || this.isHTML5 && !support.textTracks) {
-            // Clear menu and hide
-            if (utils.is.array(this.config.controls) && this.config.controls.includes('settings') && this.config.settings.includes('captions')) {
-                controls.setCaptionsMenu.call(this);
-            }
-
-            return;
-        }
-
-        // Inject the container
-        if (!utils.is.element(this.elements.captions)) {
-            this.elements.captions = utils.createElement('div', utils.getAttributesFromSelector(this.config.selectors.captions));
-
-            utils.insertAfter(this.elements.captions, this.elements.wrapper);
-        }
-
-        // Get browser info
-        var browser = utils.getBrowser();
-
-        // Fix IE captions if CORS is used
-        // Fetch captions and inject as blobs instead (data URIs not supported!)
-        if (browser.isIE && window.URL) {
-            var elements = this.media.querySelectorAll('track');
-
-            Array.from(elements).forEach(function (track) {
-                var src = track.getAttribute('src');
-                var href = utils.parseUrl(src);
-
-                if (href.hostname !== window.location.href.hostname && ['http:', 'https:'].includes(href.protocol)) {
-                    utils.fetch(src, 'blob').then(function (blob) {
-                        track.setAttribute('src', window.URL.createObjectURL(blob));
-                    }).catch(function () {
-                        utils.removeElement(track);
-                    });
-                }
-            });
-        }
-
-        // Try to load the value from storage
-        var active = this.storage.get('captions');
-
-        // Otherwise fall back to the default config
-        if (!utils.is.boolean(active)) {
-            active = this.config.captions.active;
-        }
-
-        // Set toggled state
-        this.toggleCaptions(active);
-
-        // Watch changes to textTracks and update captions menu
-        if (this.config.captions.update) {
-            utils.on(this.media.textTracks, 'addtrack removetrack', captions.update.bind(this));
-        }
-
-        // Update available languages in list next tick (the event must not be triggered before the listeners)
-        setTimeout(captions.update.bind(this), 0);
-    },
-    update: function update() {
-        // Update tracks
-        var tracks = captions.getTracks.call(this);
-        this.options.captions = tracks.map(function (_ref) {
-            var language = _ref.language;
-            return language;
-        });
-
-        // Set language if it hasn't been set already
-        if (!this.language) {
-            var language = this.config.captions.language;
-
-            if (language === 'auto') {
-                var _split = (navigator.language || navigator.userLanguage).split('-');
-
-                var _split2 = slicedToArray(_split, 1);
-
-                language = _split2[0];
-            }
-            this.language = this.storage.get('language') || (language || '').toLowerCase();
-        }
-
-        // Toggle the class hooks
-        utils.toggleClass(this.elements.container, this.config.classNames.captions.enabled, !utils.is.empty(captions.getTracks.call(this)));
-
-        // Update available languages in list
-        if ((this.config.controls || []).includes('settings') && this.config.settings.includes('captions')) {
-            controls.setCaptionsMenu.call(this);
-        }
-    },
-
-
-    // Set the captions language
-    setLanguage: function setLanguage() {
-        var _this = this;
-
-        // Setup HTML5 track rendering
-        if (this.isHTML5 && this.isVideo) {
-            captions.getTracks.call(this).forEach(function (track) {
-                // Show track
-                utils.on(track, 'cuechange', function (event) {
-                    return captions.setCue.call(_this, event);
-                });
-
-                // Turn off native caption rendering to avoid double captions
-                // eslint-disable-next-line
-                track.mode = 'hidden';
-            });
-
-            // Get current track
-            var currentTrack = captions.getCurrentTrack.call(this);
-
-            // Check if suported kind
-            if (utils.is.track(currentTrack)) {
-                // If we change the active track while a cue is already displayed we need to update it
-                if (Array.from(currentTrack.activeCues || []).length) {
-                    captions.setCue.call(this, currentTrack);
-                }
-            }
-        } else if (this.isVimeo && this.captions.active) {
-            this.embed.enableTextTrack(this.language);
-        }
-    },
-
-
-    // Get the tracks
-    getTracks: function getTracks() {
-        // Return empty array at least
-        if (utils.is.nullOrUndefined(this.media)) {
-            return [];
-        }
-
-        // Only get accepted kinds
-        return Array.from(this.media.textTracks || []).filter(function (track) {
-            return ['captions', 'subtitles'].includes(track.kind);
-        });
-    },
-
-
-    // Get the current track for the current language
-    getCurrentTrack: function getCurrentTrack() {
-        var _this2 = this;
-
-        var tracks = captions.getTracks.call(this);
-
-        if (!tracks.length) {
-            return null;
-        }
-
-        // Get track based on current language
-        var track = tracks.find(function (track) {
-            return track.language.toLowerCase() === _this2.language;
-        });
-
-        // Get the <track> with default attribute
-        if (!track) {
-            track = utils.getElement.call(this, 'track[default]');
-        }
-
-        // Get the first track
-        if (!track) {
-            var _tracks = slicedToArray(tracks, 1);
-
-            track = _tracks[0];
-        }
-
-        return track;
-    },
-
-
-    // Get UI label for track
-    getLabel: function getLabel(track) {
-        var currentTrack = track;
-
-        if (!utils.is.track(currentTrack) && support.textTracks && this.captions.active) {
-            currentTrack = captions.getCurrentTrack.call(this);
-        }
-
-        if (utils.is.track(currentTrack)) {
-            if (!utils.is.empty(currentTrack.label)) {
-                return currentTrack.label;
-            }
-
-            if (!utils.is.empty(currentTrack.language)) {
-                return track.language.toUpperCase();
-            }
-
-            return i18n.get('enabled', this.config);
-        }
-
-        return i18n.get('disabled', this.config);
-    },
-
-
-    // Display active caption if it contains text
-    setCue: function setCue(input) {
-        // Get the track from the event if needed
-        var track = utils.is.event(input) ? input.target : input;
-        var activeCues = track.activeCues;
-
-        var active = activeCues.length && activeCues[0];
-        var currentTrack = captions.getCurrentTrack.call(this);
-
-        // Only display current track
-        if (track !== currentTrack) {
-            return;
-        }
-
-        // Display a cue, if there is one
-        if (utils.is.cue(active)) {
-            captions.setText.call(this, active.getCueAsHTML());
-        } else {
-            captions.setText.call(this, null);
-        }
-
-        utils.dispatchEvent.call(this, this.media, 'cuechange');
-    },
-
-
-    // Set the current caption
-    setText: function setText(input) {
-        // Requires UI
-        if (!this.supported.ui) {
-            return;
-        }
-
-        if (utils.is.element(this.elements.captions)) {
-            var content = utils.createElement('span');
-
-            // Empty the container
-            utils.emptyElement(this.elements.captions);
-
-            // Default to empty
-            var caption = !utils.is.nullOrUndefined(input) ? input : '';
-
-            // Set the span content
-            if (utils.is.string(caption)) {
-                content.innerText = caption.trim();
-            } else {
-                content.appendChild(caption);
-            }
-
-            // Set new caption text
-            this.elements.captions.appendChild(content);
-        } else {
-            this.debug.warn('No captions element to render to');
-        }
-    }
-};
-
-// ==========================================================================
-// Console wrapper
-// ==========================================================================
-
-var noop = function noop() {};
-
-var Console = function () {
-    function Console() {
-        var enabled = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : false;
-        classCallCheck(this, Console);
-
-        this.enabled = window.console && enabled;
-
-        if (this.enabled) {
-            this.log('Debugging enabled');
-        }
-    }
-
-    createClass(Console, [{
-        key: 'log',
-        get: function get$$1() {
-            // eslint-disable-next-line no-console
-            return this.enabled ? Function.prototype.bind.call(console.log, console) : noop;
-        }
-    }, {
-        key: 'warn',
-        get: function get$$1() {
-            // eslint-disable-next-line no-console
-            return this.enabled ? Function.prototype.bind.call(console.warn, console) : noop;
-        }
-    }, {
-        key: 'error',
-        get: function get$$1() {
-            // eslint-disable-next-line no-console
-            return this.enabled ? Function.prototype.bind.call(console.error, console) : noop;
-        }
-    }]);
-    return Console;
-}();
-
-// ==========================================================================
-// Plyr default config
-// ==========================================================================
-
-var defaults$1 = {
-    // Disable
-    enabled: true,
-
-    // Custom media title
-    title: '',
-
-    // Logging to console
-    debug: false,
-
-    // Auto play (if supported)
-    autoplay: false,
-
-    // Only allow one media playing at once (vimeo only)
-    autopause: true,
-
-    // Default time to skip when rewind/fast forward
-    seekTime: 10,
-
-    // Default volume
-    volume: 1,
-    muted: false,
-
-    // Pass a custom duration
-    duration: null,
-
-    // Display the media duration on load in the current time position
-    // If you have opted to display both duration and currentTime, this is ignored
-    displayDuration: true,
-
-    // Invert the current time to be a countdown
-    invertTime: true,
-
-    // Clicking the currentTime inverts it's value to show time left rather than elapsed
-    toggleInvert: true,
-
-    // Aspect ratio (for embeds)
-    ratio: '16:9',
-
-    // Click video container to play/pause
-    clickToPlay: true,
-
-    // Auto hide the controls
-    hideControls: true,
-
-    // Reset to start when playback ended
-    resetOnEnd: false,
-
-    // Disable the standard context menu
-    disableContextMenu: true,
-
-    // Sprite (for icons)
-    loadSprite: true,
-    iconPrefix: 'plyr',
-    iconUrl: 'https://cdn.plyr.io/3.3.10/plyr.svg',
-
-    // Blank video (used to prevent errors on source change)
-    blankVideo: 'https://cdn.plyr.io/static/blank.mp4',
-
-    // Quality default
-    quality: {
-        default: 576,
-        options: [4320, 2880, 2160, 1440, 1080, 720, 576, 480, 360, 240, 'default']
-    },
-
-    // Set loops
-    loop: {
-        active: false
-        // start: null,
-        // end: null,
-    },
-
-    // Speed default and options to display
-    speed: {
-        selected: 1,
-        options: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
-    },
-
-    // Keyboard shortcut settings
-    keyboard: {
-        focused: true,
-        global: false
-    },
-
-    // Display tooltips
-    tooltips: {
-        controls: false,
-        seek: true
-    },
-
-    // Captions settings
-    captions: {
-        active: false,
-        language: 'auto',
-        // Listen to new tracks added after Plyr is initialized.
-        // This is needed for streaming captions, but may result in unselectable options
-        update: false
-    },
-
-    // Fullscreen settings
-    fullscreen: {
-        enabled: true, // Allow fullscreen?
-        fallback: true, // Fallback for vintage browsers
-        iosNative: false // Use the native fullscreen in iOS (disables custom controls)
-    },
-
-    // Local storage
-    storage: {
-        enabled: true,
-        key: 'plyr'
-    },
-
-    // Default controls
-    controls: ['play-large',
-    // 'restart',
-    // 'rewind',
-    'play',
-    // 'fast-forward',
-    'progress', 'current-time', 'mute', 'volume', 'captions', 'settings', 'pip', 'airplay', 'fullscreen'],
-    settings: ['captions', 'quality', 'speed'],
-
-    // Localisation
-    i18n: {
-        restart: 'Restart',
-        rewind: 'Rewind {seektime}s',
-        play: 'Play',
-        pause: 'Pause',
-        fastForward: 'Forward {seektime}s',
-        seek: 'Seek',
-        played: 'Played',
-        buffered: 'Buffered',
-        currentTime: 'Current time',
-        duration: 'Duration',
-        volume: 'Volume',
-        mute: 'Mute',
-        unmute: 'Unmute',
-        enableCaptions: 'Enable captions',
-        disableCaptions: 'Disable captions',
-        enterFullscreen: 'Enter fullscreen',
-        exitFullscreen: 'Exit fullscreen',
-        frameTitle: 'Player for {title}',
-        captions: 'Captions',
-        settings: 'Settings',
-        speed: 'Speed',
-        normal: 'Normal',
-        quality: 'Quality',
-        loop: 'Loop',
-        start: 'Start',
-        end: 'End',
-        all: 'All',
-        reset: 'Reset',
-        disabled: 'Disabled',
-        enabled: 'Enabled',
-        advertisement: 'Ad',
-        qualityBadge: {
-            2160: '4K',
-            1440: 'HD',
-            1080: 'HD',
-            720: 'HD',
-            576: 'SD',
-            480: 'SD'
-        }
-    },
-
-    // URLs
-    urls: {
-        vimeo: {
-            sdk: 'https://player.vimeo.com/api/player.js',
-            iframe: 'https://player.vimeo.com/video/{0}?{1}',
-            api: 'https://vimeo.com/api/v2/video/{0}.json'
-        },
-        youtube: {
-            sdk: 'https://www.youtube.com/iframe_api',
-            api: 'https://www.googleapis.com/youtube/v3/videos?id={0}&key={1}&fields=items(snippet(title))&part=snippet'
-        },
-        googleIMA: {
-            sdk: 'https://imasdk.googleapis.com/js/sdkloader/ima3.js'
-        }
-    },
-
-    // Custom control listeners
-    listeners: {
-        seek: null,
-        play: null,
-        pause: null,
-        restart: null,
-        rewind: null,
-        fastForward: null,
-        mute: null,
-        volume: null,
-        captions: null,
-        fullscreen: null,
-        pip: null,
-        airplay: null,
-        speed: null,
-        quality: null,
-        loop: null,
-        language: null
-    },
-
-    // Events to watch and bubble
-    events: [
-    // Events to watch on HTML5 media elements and bubble
-    // https://developer.mozilla.org/en/docs/Web/Guide/Events/Media_events
-    'ended', 'progress', 'stalled', 'playing', 'waiting', 'canplay', 'canplaythrough', 'loadstart', 'loadeddata', 'loadedmetadata', 'timeupdate', 'volumechange', 'play', 'pause', 'error', 'seeking', 'seeked', 'emptied', 'ratechange', 'cuechange',
-
-    // Custom events
-    'enterfullscreen', 'exitfullscreen', 'captionsenabled', 'captionsdisabled', 'languagechange', 'controlshidden', 'controlsshown', 'ready',
-
-    // YouTube
-    'statechange', 'qualitychange', 'qualityrequested',
-
-    // Ads
-    'adsloaded', 'adscontentpause', 'adscontentresume', 'adstarted', 'adsmidpoint', 'adscomplete', 'adsallcomplete', 'adsimpression', 'adsclick'],
-
-    // Selectors
-    // Change these to match your template if using custom HTML
-    selectors: {
-        editable: 'input, textarea, select, [contenteditable]',
-        container: '.plyr',
-        controls: {
-            container: null,
-            wrapper: '.plyr__controls'
-        },
-        labels: '[data-plyr]',
-        buttons: {
-            play: '[data-plyr="play"]',
-            pause: '[data-plyr="pause"]',
-            restart: '[data-plyr="restart"]',
-            rewind: '[data-plyr="rewind"]',
-            fastForward: '[data-plyr="fast-forward"]',
-            mute: '[data-plyr="mute"]',
-            captions: '[data-plyr="captions"]',
-            fullscreen: '[data-plyr="fullscreen"]',
-            pip: '[data-plyr="pip"]',
-            airplay: '[data-plyr="airplay"]',
-            settings: '[data-plyr="settings"]',
-            loop: '[data-plyr="loop"]'
-        },
-        inputs: {
-            seek: '[data-plyr="seek"]',
-            volume: '[data-plyr="volume"]',
-            speed: '[data-plyr="speed"]',
-            language: '[data-plyr="language"]',
-            quality: '[data-plyr="quality"]'
-        },
-        display: {
-            currentTime: '.plyr__time--current',
-            duration: '.plyr__time--duration',
-            buffer: '.plyr__progress__buffer',
-            loop: '.plyr__progress__loop', // Used later
-            volume: '.plyr__volume--display'
-        },
-        progress: '.plyr__progress',
-        captions: '.plyr__captions',
-        menu: {
-            quality: '.js-plyr__menu__list--quality'
-        }
-    },
-
-    // Class hooks added to the player in different states
-    classNames: {
-        type: 'plyr--{0}',
-        provider: 'plyr--{0}',
-        video: 'plyr__video-wrapper',
-        embed: 'plyr__video-embed',
-        embedContainer: 'plyr__video-embed__container',
-        poster: 'plyr__poster',
-        posterEnabled: 'plyr__poster-enabled',
-        ads: 'plyr__ads',
-        control: 'plyr__control',
-        playing: 'plyr--playing',
-        paused: 'plyr--paused',
-        stopped: 'plyr--stopped',
-        loading: 'plyr--loading',
-        hover: 'plyr--hover',
-        tooltip: 'plyr__tooltip',
-        cues: 'plyr__cues',
-        hidden: 'plyr__sr-only',
-        hideControls: 'plyr--hide-controls',
-        isIos: 'plyr--is-ios',
-        isTouch: 'plyr--is-touch',
-        uiSupported: 'plyr--full-ui',
-        noTransition: 'plyr--no-transition',
-        menu: {
-            value: 'plyr__menu__value',
-            badge: 'plyr__badge',
-            open: 'plyr--menu-open'
-        },
-        captions: {
-            enabled: 'plyr--captions-enabled',
-            active: 'plyr--captions-active'
-        },
-        fullscreen: {
-            enabled: 'plyr--fullscreen-enabled',
-            fallback: 'plyr--fullscreen-fallback'
-        },
-        pip: {
-            supported: 'plyr--pip-supported',
-            active: 'plyr--pip-active'
-        },
-        airplay: {
-            supported: 'plyr--airplay-supported',
-            active: 'plyr--airplay-active'
-        },
-        tabFocus: 'plyr__tab-focus'
-    },
-
-    // Embed attributes
-    attributes: {
-        embed: {
-            provider: 'data-plyr-provider',
-            id: 'data-plyr-embed-id'
-        }
-    },
-
-    // API keys
-    keys: {
-        google: null
-    },
-
-    // Advertisements plugin
-    // Register for an account here: http://vi.ai/publisher-video-monetization/?aid=plyrio
-    ads: {
-        enabled: false,
-        publisherId: ''
-    }
-};
-
-// ==========================================================================
-
-var browser$1 = utils.getBrowser();
-
-function onChange() {
-    if (!this.enabled) {
-        return;
-    }
-
-    // Update toggle button
-    var button = this.player.elements.buttons.fullscreen;
-    if (utils.is.element(button)) {
-        utils.toggleState(button, this.active);
-    }
-
-    // Trigger an event
-    utils.dispatchEvent.call(this.player, this.target, this.active ? 'enterfullscreen' : 'exitfullscreen', true);
-
-    // Trap focus in container
-    if (!browser$1.isIos) {
-        utils.trapFocus.call(this.player, this.target, this.active);
-    }
-}
-
-function toggleFallback() {
-    var toggle = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : false;
-
-    // Store or restore scroll position
-    if (toggle) {
-        this.scrollPosition = {
-            x: window.scrollX || 0,
-            y: window.scrollY || 0
-        };
-    } else {
-        window.scrollTo(this.scrollPosition.x, this.scrollPosition.y);
-    }
-
-    // Toggle scroll
-    document.body.style.overflow = toggle ? 'hidden' : '';
-
-    // Toggle class hook
-    utils.toggleClass(this.target, this.player.config.classNames.fullscreen.fallback, toggle);
-
-    // Toggle button and fire events
-    onChange.call(this);
-}
-
-var Fullscreen = function () {
-    function Fullscreen(player) {
-        var _this = this;
-
-        classCallCheck(this, Fullscreen);
-
-        // Keep reference to parent
-        this.player = player;
-
-        // Get prefix
-        this.prefix = Fullscreen.prefix;
-        this.property = Fullscreen.property;
-
-        // Scroll position
-        this.scrollPosition = { x: 0, y: 0 };
-
-        // Register event listeners
-        // Handle event (incase user presses escape etc)
-        utils.on(document, this.prefix === 'ms' ? 'MSFullscreenChange' : this.prefix + 'fullscreenchange', function () {
-            // TODO: Filter for target??
-            onChange.call(_this);
-        });
-
-        // Fullscreen toggle on double click
-        utils.on(this.player.elements.container, 'dblclick', function (event) {
-            // Ignore double click in controls
-            if (utils.is.element(_this.player.elements.controls) && _this.player.elements.controls.contains(event.target)) {
-                return;
-            }
-
-            _this.toggle();
-        });
-
-        // Update the UI
-        this.update();
-    }
-
-    // Determine if native supported
-
-
-    createClass(Fullscreen, [{
-        key: 'update',
-
-
-        // Update UI
-        value: function update() {
-            if (this.enabled) {
-                this.player.debug.log((Fullscreen.native ? 'Native' : 'Fallback') + ' fullscreen enabled');
-            } else {
-                this.player.debug.log('Fullscreen not supported and fallback disabled');
-            }
-
-            // Add styling hook to show button
-            utils.toggleClass(this.player.elements.container, this.player.config.classNames.fullscreen.enabled, this.enabled);
-        }
-
-        // Make an element fullscreen
-
-    }, {
-        key: 'enter',
-        value: function enter() {
-            if (!this.enabled) {
-                return;
-            }
-
-            // iOS native fullscreen doesn't need the request step
-            if (browser$1.isIos && this.player.config.fullscreen.iosNative) {
-                if (this.player.playing) {
-                    this.target.webkitEnterFullscreen();
-                }
-            } else if (!Fullscreen.native) {
-                toggleFallback.call(this, true);
-            } else if (!this.prefix) {
-                this.target.requestFullscreen();
-            } else if (!utils.is.empty(this.prefix)) {
-                this.target[this.prefix + 'Request' + this.property]();
-            }
-        }
-
-        // Bail from fullscreen
-
-    }, {
-        key: 'exit',
-        value: function exit() {
-            if (!this.enabled) {
-                return;
-            }
-
-            // iOS native fullscreen
-            if (browser$1.isIos && this.player.config.fullscreen.iosNative) {
-                this.target.webkitExitFullscreen();
-                this.player.play();
-            } else if (!Fullscreen.native) {
-                toggleFallback.call(this, false);
-            } else if (!this.prefix) {
-                (document.cancelFullScreen || document.exitFullscreen).call(document);
-            } else if (!utils.is.empty(this.prefix)) {
-                var action = this.prefix === 'moz' ? 'Cancel' : 'Exit';
-                document['' + this.prefix + action + this.property]();
-            }
-        }
-
-        // Toggle state
-
-    }, {
-        key: 'toggle',
-        value: function toggle() {
-            if (!this.active) {
-                this.enter();
-            } else {
-                this.exit();
-            }
-        }
-    }, {
-        key: 'enabled',
-
-
-        // Determine if fullscreen is enabled
-        get: function get$$1() {
-            return (Fullscreen.native || this.player.config.fullscreen.fallback) && this.player.config.fullscreen.enabled && this.player.supported.ui && this.player.isVideo;
-        }
-
-        // Get active state
-
-    }, {
-        key: 'active',
-        get: function get$$1() {
-            if (!this.enabled) {
-                return false;
-            }
-
-            // Fallback using classname
-            if (!Fullscreen.native) {
-                return utils.hasClass(this.target, this.player.config.classNames.fullscreen.fallback);
-            }
-
-            var element = !this.prefix ? document.fullscreenElement : document['' + this.prefix + this.property + 'Element'];
-
-            return element === this.target;
-        }
-
-        // Get target element
-
-    }, {
-        key: 'target',
-        get: function get$$1() {
-            return browser$1.isIos && this.player.config.fullscreen.iosNative ? this.player.media : this.player.elements.container;
-        }
-    }], [{
-        key: 'native',
-        get: function get$$1() {
-            return !!(document.fullscreenEnabled || document.webkitFullscreenEnabled || document.mozFullScreenEnabled || document.msFullscreenEnabled);
-        }
-
-        // Get the prefix for handlers
-
-    }, {
-        key: 'prefix',
-        get: function get$$1() {
-            // No prefix
-            if (utils.is.function(document.exitFullscreen)) {
-                return '';
-            }
-
-            // Check for fullscreen support by vendor prefix
-            var value = '';
-            var prefixes = ['webkit', 'moz', 'ms'];
-
-            prefixes.some(function (pre) {
-                if (utils.is.function(document[pre + 'ExitFullscreen']) || utils.is.function(document[pre + 'CancelFullScreen'])) {
-                    value = pre;
-                    return true;
-                }
-
-                return false;
-            });
-
-            return value;
-        }
-    }, {
-        key: 'property',
-        get: function get$$1() {
-            return this.prefix === 'moz' ? 'FullScreen' : 'Fullscreen';
-        }
-    }]);
-    return Fullscreen;
-}();
 
 // ==========================================================================
 
@@ -5073,6 +5001,764 @@ var Listeners = function () {
         }
     }]);
     return Listeners;
+}();
+
+// ==========================================================================
+
+var Storage = function () {
+    function Storage(player) {
+        classCallCheck(this, Storage);
+
+        this.enabled = player.config.storage.enabled;
+        this.key = player.config.storage.key;
+    }
+
+    // Check for actual support (see if we can use it)
+
+
+    createClass(Storage, [{
+        key: 'get',
+        value: function get$$1(key) {
+            if (!Storage.supported || !this.enabled) {
+                return null;
+            }
+
+            var store = window.localStorage.getItem(this.key);
+
+            if (utils.is.empty(store)) {
+                return null;
+            }
+
+            var json = JSON.parse(store);
+
+            return utils.is.string(key) && key.length ? json[key] : json;
+        }
+    }, {
+        key: 'set',
+        value: function set$$1(object) {
+            // Bail if we don't have localStorage support or it's disabled
+            if (!Storage.supported || !this.enabled) {
+                return;
+            }
+
+            // Can only store objectst
+            if (!utils.is.object(object)) {
+                return;
+            }
+
+            // Get current storage
+            var storage = this.get();
+
+            // Default to empty object
+            if (utils.is.empty(storage)) {
+                storage = {};
+            }
+
+            // Update the working copy of the values
+            utils.extend(storage, object);
+
+            // Update storage
+            window.localStorage.setItem(this.key, JSON.stringify(storage));
+        }
+    }], [{
+        key: 'supported',
+        get: function get$$1() {
+            try {
+                if (!('localStorage' in window)) {
+                    return false;
+                }
+
+                var test = '___test';
+
+                // Try to use it (it might be disabled, e.g. user is in private mode)
+                // see: https://github.com/sampotts/plyr/issues/131
+                window.localStorage.setItem(test, test);
+                window.localStorage.removeItem(test);
+
+                return true;
+            } catch (e) {
+                return false;
+            }
+        }
+    }]);
+    return Storage;
+}();
+
+// ==========================================================================
+
+var Ads = function () {
+    /**
+     * Ads constructor.
+     * @param {object} player
+     * @return {Ads}
+     */
+    function Ads(player) {
+        var _this = this;
+
+        classCallCheck(this, Ads);
+
+        this.player = player;
+        this.publisherId = player.config.ads.publisherId;
+        this.playing = false;
+        this.initialized = false;
+        this.elements = {
+            container: null,
+            displayContainer: null
+        };
+        this.manager = null;
+        this.loader = null;
+        this.cuePoints = null;
+        this.events = {};
+        this.safetyTimer = null;
+        this.countdownTimer = null;
+
+        // Setup a promise to resolve when the IMA manager is ready
+        this.managerPromise = new Promise(function (resolve, reject) {
+            // The ad is loaded and ready
+            _this.on('loaded', resolve);
+
+            // Ads failed
+            _this.on('error', reject);
+        });
+
+        this.load();
+    }
+
+    createClass(Ads, [{
+        key: 'load',
+
+
+        /**
+         * Load the IMA SDK
+         */
+        value: function load() {
+            var _this2 = this;
+
+            if (this.enabled) {
+                // Check if the Google IMA3 SDK is loaded or load it ourselves
+                if (!utils.is.object(window.google) || !utils.is.object(window.google.ima)) {
+                    utils.loadScript(this.player.config.urls.googleIMA.sdk).then(function () {
+                        _this2.ready();
+                    }).catch(function () {
+                        // Script failed to load or is blocked
+                        _this2.trigger('error', new Error('Google IMA SDK failed to load'));
+                    });
+                } else {
+                    this.ready();
+                }
+            }
+        }
+
+        /**
+         * Get the ads instance ready
+         */
+
+    }, {
+        key: 'ready',
+        value: function ready() {
+            var _this3 = this;
+
+            // Start ticking our safety timer. If the whole advertisement
+            // thing doesn't resolve within our set time; we bail
+            this.startSafetyTimer(12000, 'ready()');
+
+            // Clear the safety timer
+            this.managerPromise.then(function () {
+                _this3.clearSafetyTimer('onAdsManagerLoaded()');
+            });
+
+            // Set listeners on the Plyr instance
+            this.listeners();
+
+            // Setup the IMA SDK
+            this.setupIMA();
+        }
+
+        // Build the default tag URL
+
+    }, {
+        key: 'setupIMA',
+
+
+        /**
+         * In order for the SDK to display ads for our video, we need to tell it where to put them,
+         * so here we define our ad container. This div is set up to render on top of the video player.
+         * Using the code below, we tell the SDK to render ads within that div. We also provide a
+         * handle to the content video player - the SDK will poll the current time of our player to
+         * properly place mid-rolls. After we create the ad display container, we initialize it. On
+         * mobile devices, this initialization is done as the result of a user action.
+         */
+        value: function setupIMA() {
+            // Create the container for our advertisements
+            this.elements.container = utils.createElement('div', {
+                class: this.player.config.classNames.ads
+            });
+            this.player.elements.container.appendChild(this.elements.container);
+
+            // So we can run VPAID2
+            google.ima.settings.setVpaidMode(google.ima.ImaSdkSettings.VpaidMode.ENABLED);
+
+            // Set language
+            google.ima.settings.setLocale(this.player.config.ads.language);
+
+            // We assume the adContainer is the video container of the plyr element
+            // that will house the ads
+            this.elements.displayContainer = new google.ima.AdDisplayContainer(this.elements.container);
+
+            // Request video ads to be pre-loaded
+            this.requestAds();
+        }
+
+        /**
+         * Request advertisements
+         */
+
+    }, {
+        key: 'requestAds',
+        value: function requestAds() {
+            var _this4 = this;
+
+            var container = this.player.elements.container;
+
+
+            try {
+                // Create ads loader
+                this.loader = new google.ima.AdsLoader(this.elements.displayContainer);
+
+                // Listen and respond to ads loaded and error events
+                this.loader.addEventListener(google.ima.AdsManagerLoadedEvent.Type.ADS_MANAGER_LOADED, function (event) {
+                    return _this4.onAdsManagerLoaded(event);
+                }, false);
+                this.loader.addEventListener(google.ima.AdErrorEvent.Type.AD_ERROR, function (error) {
+                    return _this4.onAdError(error);
+                }, false);
+
+                // Request video ads
+                var request = new google.ima.AdsRequest();
+                request.adTagUrl = this.tagUrl;
+
+                // Specify the linear and nonlinear slot sizes. This helps the SDK
+                // to select the correct creative if multiple are returned
+                request.linearAdSlotWidth = container.offsetWidth;
+                request.linearAdSlotHeight = container.offsetHeight;
+                request.nonLinearAdSlotWidth = container.offsetWidth;
+                request.nonLinearAdSlotHeight = container.offsetHeight;
+
+                // We only overlay ads as we only support video.
+                request.forceNonLinearFullSlot = false;
+
+                // Mute based on current state
+                request.setAdWillPlayMuted(!this.player.muted);
+
+                this.loader.requestAds(request);
+            } catch (e) {
+                this.onAdError(e);
+            }
+        }
+
+        /**
+         * Update the ad countdown
+         * @param {boolean} start
+         */
+
+    }, {
+        key: 'pollCountdown',
+        value: function pollCountdown() {
+            var _this5 = this;
+
+            var start = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : false;
+
+            if (!start) {
+                clearInterval(this.countdownTimer);
+                this.elements.container.removeAttribute('data-badge-text');
+                return;
+            }
+
+            var update = function update() {
+                var time = utils.formatTime(Math.max(_this5.manager.getRemainingTime(), 0));
+                var label = i18n.get('advertisement', _this5.player.config) + ' - ' + time;
+                _this5.elements.container.setAttribute('data-badge-text', label);
+            };
+
+            this.countdownTimer = setInterval(update, 100);
+        }
+
+        /**
+         * This method is called whenever the ads are ready inside the AdDisplayContainer
+         * @param {Event} adsManagerLoadedEvent
+         */
+
+    }, {
+        key: 'onAdsManagerLoaded',
+        value: function onAdsManagerLoaded(event) {
+            var _this6 = this;
+
+            // Get the ads manager
+            var settings = new google.ima.AdsRenderingSettings();
+
+            // Tell the SDK to save and restore content video state on our behalf
+            settings.restoreCustomPlaybackStateOnAdBreakComplete = true;
+            settings.enablePreloading = true;
+
+            // The SDK is polling currentTime on the contentPlayback. And needs a duration
+            // so it can determine when to start the mid- and post-roll
+            this.manager = event.getAdsManager(this.player, settings);
+
+            // Get the cue points for any mid-rolls by filtering out the pre- and post-roll
+            this.cuePoints = this.manager.getCuePoints();
+
+            // Add advertisement cue's within the time line if available
+            if (!utils.is.empty(this.cuePoints)) {
+                this.cuePoints.forEach(function (cuePoint) {
+                    if (cuePoint !== 0 && cuePoint !== -1 && cuePoint < _this6.player.duration) {
+                        var seekElement = _this6.player.elements.progress;
+
+                        if (utils.is.element(seekElement)) {
+                            var cuePercentage = 100 / _this6.player.duration * cuePoint;
+                            var cue = utils.createElement('span', {
+                                class: _this6.player.config.classNames.cues
+                            });
+
+                            cue.style.left = cuePercentage.toString() + '%';
+                            seekElement.appendChild(cue);
+                        }
+                    }
+                });
+            }
+
+            // Get skippable state
+            // TODO: Skip button
+            // this.player.debug.warn(this.manager.getAdSkippableState());
+
+            // Set volume to match player
+            this.manager.setVolume(this.player.volume);
+
+            // Add listeners to the required events
+            // Advertisement error events
+            this.manager.addEventListener(google.ima.AdErrorEvent.Type.AD_ERROR, function (error) {
+                return _this6.onAdError(error);
+            });
+
+            // Advertisement regular events
+            Object.keys(google.ima.AdEvent.Type).forEach(function (type) {
+                _this6.manager.addEventListener(google.ima.AdEvent.Type[type], function (event) {
+                    return _this6.onAdEvent(event);
+                });
+            });
+
+            // Resolve our adsManager
+            this.trigger('loaded');
+        }
+
+        /**
+         * This is where all the event handling takes place. Retrieve the ad from the event. Some
+         * events (e.g. ALL_ADS_COMPLETED) don't have the ad object associated
+         * https://developers.google.com/interactive-media-ads/docs/sdks/html5/v3/apis#ima.AdEvent.Type
+         * @param {Event} event
+         */
+
+    }, {
+        key: 'onAdEvent',
+        value: function onAdEvent(event) {
+            var _this7 = this;
+
+            var container = this.player.elements.container;
+
+            // Retrieve the ad from the event. Some events (e.g. ALL_ADS_COMPLETED)
+            // don't have ad object associated
+
+            var ad = event.getAd();
+
+            // Proxy event
+            var dispatchEvent = function dispatchEvent(type) {
+                var event = 'ads' + type.replace(/_/g, '').toLowerCase();
+                utils.dispatchEvent.call(_this7.player, _this7.player.media, event);
+            };
+
+            switch (event.type) {
+                case google.ima.AdEvent.Type.LOADED:
+                    // This is the first event sent for an ad - it is possible to determine whether the
+                    // ad is a video ad or an overlay
+                    this.trigger('loaded');
+
+                    // Bubble event
+                    dispatchEvent(event.type);
+
+                    // Start countdown
+                    this.pollCountdown(true);
+
+                    if (!ad.isLinear()) {
+                        // Position AdDisplayContainer correctly for overlay
+                        ad.width = container.offsetWidth;
+                        ad.height = container.offsetHeight;
+                    }
+
+                    // console.info('Ad type: ' + event.getAd().getAdPodInfo().getPodIndex());
+                    // console.info('Ad time: ' + event.getAd().getAdPodInfo().getTimeOffset());
+                    break;
+
+                case google.ima.AdEvent.Type.ALL_ADS_COMPLETED:
+                    // All ads for the current videos are done. We can now request new advertisements
+                    // in case the video is re-played
+
+                    // Fire event
+                    dispatchEvent(event.type);
+
+                    // TODO: Example for what happens when a next video in a playlist would be loaded.
+                    // So here we load a new video when all ads are done.
+                    // Then we load new ads within a new adsManager. When the video
+                    // Is started - after - the ads are loaded, then we get ads.
+                    // You can also easily test cancelling and reloading by running
+                    // player.ads.cancel() and player.ads.play from the console I guess.
+                    // this.player.source = {
+                    //     type: 'video',
+                    //     title: 'View From A Blue Moon',
+                    //     sources: [{
+                    //         src:
+                    // 'https://cdn.plyr.io/static/demo/View_From_A_Blue_Moon_Trailer-HD.mp4', type:
+                    // 'video/mp4', }], poster:
+                    // 'https://cdn.plyr.io/static/demo/View_From_A_Blue_Moon_Trailer-HD.jpg', tracks:
+                    // [ { kind: 'captions', label: 'English', srclang: 'en', src:
+                    // 'https://cdn.plyr.io/static/demo/View_From_A_Blue_Moon_Trailer-HD.en.vtt',
+                    // default: true, }, { kind: 'captions', label: 'French', srclang: 'fr', src:
+                    // 'https://cdn.plyr.io/static/demo/View_From_A_Blue_Moon_Trailer-HD.fr.vtt', }, ],
+                    // };
+
+                    // TODO: So there is still this thing where a video should only be allowed to start
+                    // playing when the IMA SDK is ready or has failed
+
+                    this.loadAds();
+                    break;
+
+                case google.ima.AdEvent.Type.CONTENT_PAUSE_REQUESTED:
+                    // This event indicates the ad has started - the video player can adjust the UI,
+                    // for example display a pause button and remaining time. Fired when content should
+                    // be paused. This usually happens right before an ad is about to cover the content
+
+                    dispatchEvent(event.type);
+
+                    this.pauseContent();
+
+                    break;
+
+                case google.ima.AdEvent.Type.CONTENT_RESUME_REQUESTED:
+                    // This event indicates the ad has finished - the video player can perform
+                    // appropriate UI actions, such as removing the timer for remaining time detection.
+                    // Fired when content should be resumed. This usually happens when an ad finishes
+                    // or collapses
+
+                    dispatchEvent(event.type);
+
+                    this.pollCountdown();
+
+                    this.resumeContent();
+
+                    break;
+
+                case google.ima.AdEvent.Type.STARTED:
+                case google.ima.AdEvent.Type.MIDPOINT:
+                case google.ima.AdEvent.Type.COMPLETE:
+                case google.ima.AdEvent.Type.IMPRESSION:
+                case google.ima.AdEvent.Type.CLICK:
+                    dispatchEvent(event.type);
+                    break;
+
+                default:
+                    break;
+            }
+        }
+
+        /**
+         * Any ad error handling comes through here
+         * @param {Event} event
+         */
+
+    }, {
+        key: 'onAdError',
+        value: function onAdError(event) {
+            this.cancel();
+            this.player.debug.warn('Ads error', event);
+        }
+
+        /**
+         * Setup hooks for Plyr and window events. This ensures
+         * the mid- and post-roll launch at the correct time. And
+         * resize the advertisement when the player resizes
+         */
+
+    }, {
+        key: 'listeners',
+        value: function listeners() {
+            var _this8 = this;
+
+            var container = this.player.elements.container;
+
+            var time = void 0;
+
+            // Add listeners to the required events
+            this.player.on('ended', function () {
+                _this8.loader.contentComplete();
+            });
+
+            this.player.on('seeking', function () {
+                time = _this8.player.currentTime;
+                return time;
+            });
+
+            this.player.on('seeked', function () {
+                var seekedTime = _this8.player.currentTime;
+
+                if (utils.is.empty(_this8.cuePoints)) {
+                    return;
+                }
+
+                _this8.cuePoints.forEach(function (cuePoint, index) {
+                    if (time < cuePoint && cuePoint < seekedTime) {
+                        _this8.manager.discardAdBreak();
+                        _this8.cuePoints.splice(index, 1);
+                    }
+                });
+            });
+
+            // Listen to the resizing of the window. And resize ad accordingly
+            // TODO: eventually implement ResizeObserver
+            window.addEventListener('resize', function () {
+                if (_this8.manager) {
+                    _this8.manager.resize(container.offsetWidth, container.offsetHeight, google.ima.ViewMode.NORMAL);
+                }
+            });
+        }
+
+        /**
+         * Initialize the adsManager and start playing advertisements
+         */
+
+    }, {
+        key: 'play',
+        value: function play() {
+            var _this9 = this;
+
+            var container = this.player.elements.container;
+
+
+            if (!this.managerPromise) {
+                this.resumeContent();
+            }
+
+            // Play the requested advertisement whenever the adsManager is ready
+            this.managerPromise.then(function () {
+                // Initialize the container. Must be done via a user action on mobile devices
+                _this9.elements.displayContainer.initialize();
+
+                try {
+                    if (!_this9.initialized) {
+                        // Initialize the ads manager. Ad rules playlist will start at this time
+                        _this9.manager.init(container.offsetWidth, container.offsetHeight, google.ima.ViewMode.NORMAL);
+
+                        // Call play to start showing the ad. Single video and overlay ads will
+                        // start at this time; the call will be ignored for ad rules
+                        _this9.manager.start();
+                    }
+
+                    _this9.initialized = true;
+                } catch (adError) {
+                    // An error may be thrown if there was a problem with the
+                    // VAST response
+                    _this9.onAdError(adError);
+                }
+            }).catch(function () {});
+        }
+
+        /**
+         * Resume our video
+         */
+
+    }, {
+        key: 'resumeContent',
+        value: function resumeContent() {
+            // Hide the advertisement container
+            this.elements.container.style.zIndex = '';
+
+            // Ad is stopped
+            this.playing = false;
+
+            // Play our video
+            if (this.player.currentTime < this.player.duration) {
+                this.player.play();
+            }
+        }
+
+        /**
+         * Pause our video
+         */
+
+    }, {
+        key: 'pauseContent',
+        value: function pauseContent() {
+            // Show the advertisement container
+            this.elements.container.style.zIndex = 3;
+
+            // Ad is playing.
+            this.playing = true;
+
+            // Pause our video.
+            this.player.pause();
+        }
+
+        /**
+         * Destroy the adsManager so we can grab new ads after this. If we don't then we're not
+         * allowed to call new ads based on google policies, as they interpret this as an accidental
+         * video requests. https://developers.google.com/interactive-
+         * media-ads/docs/sdks/android/faq#8
+         */
+
+    }, {
+        key: 'cancel',
+        value: function cancel() {
+            // Pause our video
+            if (this.initialized) {
+                this.resumeContent();
+            }
+
+            // Tell our instance that we're done for now
+            this.trigger('error');
+
+            // Re-create our adsManager
+            this.loadAds();
+        }
+
+        /**
+         * Re-create our adsManager
+         */
+
+    }, {
+        key: 'loadAds',
+        value: function loadAds() {
+            var _this10 = this;
+
+            // Tell our adsManager to go bye bye
+            this.managerPromise.then(function () {
+                // Destroy our adsManager
+                if (_this10.manager) {
+                    _this10.manager.destroy();
+                }
+
+                // Re-set our adsManager promises
+                _this10.managerPromise = new Promise(function (resolve) {
+                    _this10.on('loaded', resolve);
+                    _this10.player.debug.log(_this10.manager);
+                });
+
+                // Now request some new advertisements
+                _this10.requestAds();
+            }).catch(function () {});
+        }
+
+        /**
+         * Handles callbacks after an ad event was invoked
+         * @param {string} event - Event type
+         */
+
+    }, {
+        key: 'trigger',
+        value: function trigger(event) {
+            var _this11 = this;
+
+            for (var _len = arguments.length, args = Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
+                args[_key - 1] = arguments[_key];
+            }
+
+            var handlers = this.events[event];
+
+            if (utils.is.array(handlers)) {
+                handlers.forEach(function (handler) {
+                    if (utils.is.function(handler)) {
+                        handler.apply(_this11, args);
+                    }
+                });
+            }
+        }
+
+        /**
+         * Add event listeners
+         * @param {string} event - Event type
+         * @param {function} callback - Callback for when event occurs
+         * @return {Ads}
+         */
+
+    }, {
+        key: 'on',
+        value: function on(event, callback) {
+            if (!utils.is.array(this.events[event])) {
+                this.events[event] = [];
+            }
+
+            this.events[event].push(callback);
+
+            return this;
+        }
+
+        /**
+         * Setup a safety timer for when the ad network doesn't respond for whatever reason.
+         * The advertisement has 12 seconds to get its things together. We stop this timer when the
+         * advertisement is playing, or when a user action is required to start, then we clear the
+         * timer on ad ready
+         * @param {number} time
+         * @param {string} from
+         */
+
+    }, {
+        key: 'startSafetyTimer',
+        value: function startSafetyTimer(time, from) {
+            var _this12 = this;
+
+            this.player.debug.log('Safety timer invoked from: ' + from);
+
+            this.safetyTimer = setTimeout(function () {
+                _this12.cancel();
+                _this12.clearSafetyTimer('startSafetyTimer()');
+            }, time);
+        }
+
+        /**
+         * Clear our safety timer(s)
+         * @param {string} from
+         */
+
+    }, {
+        key: 'clearSafetyTimer',
+        value: function clearSafetyTimer(from) {
+            if (!utils.is.nullOrUndefined(this.safetyTimer)) {
+                this.player.debug.log('Safety timer cleared from: ' + from);
+
+                clearTimeout(this.safetyTimer);
+                this.safetyTimer = null;
+            }
+        }
+    }, {
+        key: 'enabled',
+        get: function get$$1() {
+            return this.player.isVideo && this.player.config.ads.enabled && !utils.is.empty(this.publisherId);
+        }
+    }, {
+        key: 'tagUrl',
+        get: function get$$1() {
+            var params = {
+                AV_PUBLISHERID: '58c25bb0073ef448b1087ad6',
+                AV_CHANNELID: '5a0458dc28a06145e4519d21',
+                AV_URL: location.hostname,
+                cb: Date.now(),
+                AV_WIDTH: 640,
+                AV_HEIGHT: 480,
+                AV_CDIM2: this.publisherId
+            };
+
+            var base = 'https://go.aniview.com/api/adserver6/vast/';
+
+            return base + '?' + utils.buildUrlParams(params);
+        }
+    }]);
+    return Ads;
 }();
 
 // ==========================================================================
@@ -6041,683 +6727,6 @@ var media = {
 
 // ==========================================================================
 
-var Ads = function () {
-    /**
-     * Ads constructor.
-     * @param {object} player
-     * @return {Ads}
-     */
-    function Ads(player) {
-        var _this = this;
-
-        classCallCheck(this, Ads);
-
-        this.player = player;
-        this.publisherId = player.config.ads.publisherId;
-        this.playing = false;
-        this.initialized = false;
-        this.elements = {
-            container: null,
-            displayContainer: null
-        };
-        this.manager = null;
-        this.loader = null;
-        this.cuePoints = null;
-        this.events = {};
-        this.safetyTimer = null;
-        this.countdownTimer = null;
-
-        // Setup a promise to resolve when the IMA manager is ready
-        this.managerPromise = new Promise(function (resolve, reject) {
-            // The ad is loaded and ready
-            _this.on('loaded', resolve);
-
-            // Ads failed
-            _this.on('error', reject);
-        });
-
-        this.load();
-    }
-
-    createClass(Ads, [{
-        key: 'load',
-
-
-        /**
-         * Load the IMA SDK
-         */
-        value: function load() {
-            var _this2 = this;
-
-            if (this.enabled) {
-                // Check if the Google IMA3 SDK is loaded or load it ourselves
-                if (!utils.is.object(window.google) || !utils.is.object(window.google.ima)) {
-                    utils.loadScript(this.player.config.urls.googleIMA.sdk).then(function () {
-                        _this2.ready();
-                    }).catch(function () {
-                        // Script failed to load or is blocked
-                        _this2.trigger('error', new Error('Google IMA SDK failed to load'));
-                    });
-                } else {
-                    this.ready();
-                }
-            }
-        }
-
-        /**
-         * Get the ads instance ready
-         */
-
-    }, {
-        key: 'ready',
-        value: function ready() {
-            var _this3 = this;
-
-            // Start ticking our safety timer. If the whole advertisement
-            // thing doesn't resolve within our set time; we bail
-            this.startSafetyTimer(12000, 'ready()');
-
-            // Clear the safety timer
-            this.managerPromise.then(function () {
-                _this3.clearSafetyTimer('onAdsManagerLoaded()');
-            });
-
-            // Set listeners on the Plyr instance
-            this.listeners();
-
-            // Setup the IMA SDK
-            this.setupIMA();
-        }
-
-        // Build the default tag URL
-
-    }, {
-        key: 'setupIMA',
-
-
-        /**
-         * In order for the SDK to display ads for our video, we need to tell it where to put them,
-         * so here we define our ad container. This div is set up to render on top of the video player.
-         * Using the code below, we tell the SDK to render ads within that div. We also provide a
-         * handle to the content video player - the SDK will poll the current time of our player to
-         * properly place mid-rolls. After we create the ad display container, we initialize it. On
-         * mobile devices, this initialization is done as the result of a user action.
-         */
-        value: function setupIMA() {
-            // Create the container for our advertisements
-            this.elements.container = utils.createElement('div', {
-                class: this.player.config.classNames.ads
-            });
-            this.player.elements.container.appendChild(this.elements.container);
-
-            // So we can run VPAID2
-            google.ima.settings.setVpaidMode(google.ima.ImaSdkSettings.VpaidMode.ENABLED);
-
-            // Set language
-            google.ima.settings.setLocale(this.player.config.ads.language);
-
-            // We assume the adContainer is the video container of the plyr element
-            // that will house the ads
-            this.elements.displayContainer = new google.ima.AdDisplayContainer(this.elements.container);
-
-            // Request video ads to be pre-loaded
-            this.requestAds();
-        }
-
-        /**
-         * Request advertisements
-         */
-
-    }, {
-        key: 'requestAds',
-        value: function requestAds() {
-            var _this4 = this;
-
-            var container = this.player.elements.container;
-
-
-            try {
-                // Create ads loader
-                this.loader = new google.ima.AdsLoader(this.elements.displayContainer);
-
-                // Listen and respond to ads loaded and error events
-                this.loader.addEventListener(google.ima.AdsManagerLoadedEvent.Type.ADS_MANAGER_LOADED, function (event) {
-                    return _this4.onAdsManagerLoaded(event);
-                }, false);
-                this.loader.addEventListener(google.ima.AdErrorEvent.Type.AD_ERROR, function (error) {
-                    return _this4.onAdError(error);
-                }, false);
-
-                // Request video ads
-                var request = new google.ima.AdsRequest();
-                request.adTagUrl = this.tagUrl;
-
-                // Specify the linear and nonlinear slot sizes. This helps the SDK
-                // to select the correct creative if multiple are returned
-                request.linearAdSlotWidth = container.offsetWidth;
-                request.linearAdSlotHeight = container.offsetHeight;
-                request.nonLinearAdSlotWidth = container.offsetWidth;
-                request.nonLinearAdSlotHeight = container.offsetHeight;
-
-                // We only overlay ads as we only support video.
-                request.forceNonLinearFullSlot = false;
-
-                // Mute based on current state
-                request.setAdWillPlayMuted(!this.player.muted);
-
-                this.loader.requestAds(request);
-            } catch (e) {
-                this.onAdError(e);
-            }
-        }
-
-        /**
-         * Update the ad countdown
-         * @param {boolean} start
-         */
-
-    }, {
-        key: 'pollCountdown',
-        value: function pollCountdown() {
-            var _this5 = this;
-
-            var start = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : false;
-
-            if (!start) {
-                clearInterval(this.countdownTimer);
-                this.elements.container.removeAttribute('data-badge-text');
-                return;
-            }
-
-            var update = function update() {
-                var time = utils.formatTime(Math.max(_this5.manager.getRemainingTime(), 0));
-                var label = i18n.get('advertisement', _this5.player.config) + ' - ' + time;
-                _this5.elements.container.setAttribute('data-badge-text', label);
-            };
-
-            this.countdownTimer = setInterval(update, 100);
-        }
-
-        /**
-         * This method is called whenever the ads are ready inside the AdDisplayContainer
-         * @param {Event} adsManagerLoadedEvent
-         */
-
-    }, {
-        key: 'onAdsManagerLoaded',
-        value: function onAdsManagerLoaded(event) {
-            var _this6 = this;
-
-            // Get the ads manager
-            var settings = new google.ima.AdsRenderingSettings();
-
-            // Tell the SDK to save and restore content video state on our behalf
-            settings.restoreCustomPlaybackStateOnAdBreakComplete = true;
-            settings.enablePreloading = true;
-
-            // The SDK is polling currentTime on the contentPlayback. And needs a duration
-            // so it can determine when to start the mid- and post-roll
-            this.manager = event.getAdsManager(this.player, settings);
-
-            // Get the cue points for any mid-rolls by filtering out the pre- and post-roll
-            this.cuePoints = this.manager.getCuePoints();
-
-            // Add advertisement cue's within the time line if available
-            if (!utils.is.empty(this.cuePoints)) {
-                this.cuePoints.forEach(function (cuePoint) {
-                    if (cuePoint !== 0 && cuePoint !== -1 && cuePoint < _this6.player.duration) {
-                        var seekElement = _this6.player.elements.progress;
-
-                        if (utils.is.element(seekElement)) {
-                            var cuePercentage = 100 / _this6.player.duration * cuePoint;
-                            var cue = utils.createElement('span', {
-                                class: _this6.player.config.classNames.cues
-                            });
-
-                            cue.style.left = cuePercentage.toString() + '%';
-                            seekElement.appendChild(cue);
-                        }
-                    }
-                });
-            }
-
-            // Get skippable state
-            // TODO: Skip button
-            // this.player.debug.warn(this.manager.getAdSkippableState());
-
-            // Set volume to match player
-            this.manager.setVolume(this.player.volume);
-
-            // Add listeners to the required events
-            // Advertisement error events
-            this.manager.addEventListener(google.ima.AdErrorEvent.Type.AD_ERROR, function (error) {
-                return _this6.onAdError(error);
-            });
-
-            // Advertisement regular events
-            Object.keys(google.ima.AdEvent.Type).forEach(function (type) {
-                _this6.manager.addEventListener(google.ima.AdEvent.Type[type], function (event) {
-                    return _this6.onAdEvent(event);
-                });
-            });
-
-            // Resolve our adsManager
-            this.trigger('loaded');
-        }
-
-        /**
-         * This is where all the event handling takes place. Retrieve the ad from the event. Some
-         * events (e.g. ALL_ADS_COMPLETED) don't have the ad object associated
-         * https://developers.google.com/interactive-media-ads/docs/sdks/html5/v3/apis#ima.AdEvent.Type
-         * @param {Event} event
-         */
-
-    }, {
-        key: 'onAdEvent',
-        value: function onAdEvent(event) {
-            var _this7 = this;
-
-            var container = this.player.elements.container;
-
-            // Retrieve the ad from the event. Some events (e.g. ALL_ADS_COMPLETED)
-            // don't have ad object associated
-
-            var ad = event.getAd();
-
-            // Proxy event
-            var dispatchEvent = function dispatchEvent(type) {
-                var event = 'ads' + type.replace(/_/g, '').toLowerCase();
-                utils.dispatchEvent.call(_this7.player, _this7.player.media, event);
-            };
-
-            switch (event.type) {
-                case google.ima.AdEvent.Type.LOADED:
-                    // This is the first event sent for an ad - it is possible to determine whether the
-                    // ad is a video ad or an overlay
-                    this.trigger('loaded');
-
-                    // Bubble event
-                    dispatchEvent(event.type);
-
-                    // Start countdown
-                    this.pollCountdown(true);
-
-                    if (!ad.isLinear()) {
-                        // Position AdDisplayContainer correctly for overlay
-                        ad.width = container.offsetWidth;
-                        ad.height = container.offsetHeight;
-                    }
-
-                    // console.info('Ad type: ' + event.getAd().getAdPodInfo().getPodIndex());
-                    // console.info('Ad time: ' + event.getAd().getAdPodInfo().getTimeOffset());
-                    break;
-
-                case google.ima.AdEvent.Type.ALL_ADS_COMPLETED:
-                    // All ads for the current videos are done. We can now request new advertisements
-                    // in case the video is re-played
-
-                    // Fire event
-                    dispatchEvent(event.type);
-
-                    // TODO: Example for what happens when a next video in a playlist would be loaded.
-                    // So here we load a new video when all ads are done.
-                    // Then we load new ads within a new adsManager. When the video
-                    // Is started - after - the ads are loaded, then we get ads.
-                    // You can also easily test cancelling and reloading by running
-                    // player.ads.cancel() and player.ads.play from the console I guess.
-                    // this.player.source = {
-                    //     type: 'video',
-                    //     title: 'View From A Blue Moon',
-                    //     sources: [{
-                    //         src:
-                    // 'https://cdn.plyr.io/static/demo/View_From_A_Blue_Moon_Trailer-HD.mp4', type:
-                    // 'video/mp4', }], poster:
-                    // 'https://cdn.plyr.io/static/demo/View_From_A_Blue_Moon_Trailer-HD.jpg', tracks:
-                    // [ { kind: 'captions', label: 'English', srclang: 'en', src:
-                    // 'https://cdn.plyr.io/static/demo/View_From_A_Blue_Moon_Trailer-HD.en.vtt',
-                    // default: true, }, { kind: 'captions', label: 'French', srclang: 'fr', src:
-                    // 'https://cdn.plyr.io/static/demo/View_From_A_Blue_Moon_Trailer-HD.fr.vtt', }, ],
-                    // };
-
-                    // TODO: So there is still this thing where a video should only be allowed to start
-                    // playing when the IMA SDK is ready or has failed
-
-                    this.loadAds();
-                    break;
-
-                case google.ima.AdEvent.Type.CONTENT_PAUSE_REQUESTED:
-                    // This event indicates the ad has started - the video player can adjust the UI,
-                    // for example display a pause button and remaining time. Fired when content should
-                    // be paused. This usually happens right before an ad is about to cover the content
-
-                    dispatchEvent(event.type);
-
-                    this.pauseContent();
-
-                    break;
-
-                case google.ima.AdEvent.Type.CONTENT_RESUME_REQUESTED:
-                    // This event indicates the ad has finished - the video player can perform
-                    // appropriate UI actions, such as removing the timer for remaining time detection.
-                    // Fired when content should be resumed. This usually happens when an ad finishes
-                    // or collapses
-
-                    dispatchEvent(event.type);
-
-                    this.pollCountdown();
-
-                    this.resumeContent();
-
-                    break;
-
-                case google.ima.AdEvent.Type.STARTED:
-                case google.ima.AdEvent.Type.MIDPOINT:
-                case google.ima.AdEvent.Type.COMPLETE:
-                case google.ima.AdEvent.Type.IMPRESSION:
-                case google.ima.AdEvent.Type.CLICK:
-                    dispatchEvent(event.type);
-                    break;
-
-                default:
-                    break;
-            }
-        }
-
-        /**
-         * Any ad error handling comes through here
-         * @param {Event} event
-         */
-
-    }, {
-        key: 'onAdError',
-        value: function onAdError(event) {
-            this.cancel();
-            this.player.debug.warn('Ads error', event);
-        }
-
-        /**
-         * Setup hooks for Plyr and window events. This ensures
-         * the mid- and post-roll launch at the correct time. And
-         * resize the advertisement when the player resizes
-         */
-
-    }, {
-        key: 'listeners',
-        value: function listeners() {
-            var _this8 = this;
-
-            var container = this.player.elements.container;
-
-            var time = void 0;
-
-            // Add listeners to the required events
-            this.player.on('ended', function () {
-                _this8.loader.contentComplete();
-            });
-
-            this.player.on('seeking', function () {
-                time = _this8.player.currentTime;
-                return time;
-            });
-
-            this.player.on('seeked', function () {
-                var seekedTime = _this8.player.currentTime;
-
-                if (utils.is.empty(_this8.cuePoints)) {
-                    return;
-                }
-
-                _this8.cuePoints.forEach(function (cuePoint, index) {
-                    if (time < cuePoint && cuePoint < seekedTime) {
-                        _this8.manager.discardAdBreak();
-                        _this8.cuePoints.splice(index, 1);
-                    }
-                });
-            });
-
-            // Listen to the resizing of the window. And resize ad accordingly
-            // TODO: eventually implement ResizeObserver
-            window.addEventListener('resize', function () {
-                if (_this8.manager) {
-                    _this8.manager.resize(container.offsetWidth, container.offsetHeight, google.ima.ViewMode.NORMAL);
-                }
-            });
-        }
-
-        /**
-         * Initialize the adsManager and start playing advertisements
-         */
-
-    }, {
-        key: 'play',
-        value: function play() {
-            var _this9 = this;
-
-            var container = this.player.elements.container;
-
-
-            if (!this.managerPromise) {
-                this.resumeContent();
-            }
-
-            // Play the requested advertisement whenever the adsManager is ready
-            this.managerPromise.then(function () {
-                // Initialize the container. Must be done via a user action on mobile devices
-                _this9.elements.displayContainer.initialize();
-
-                try {
-                    if (!_this9.initialized) {
-                        // Initialize the ads manager. Ad rules playlist will start at this time
-                        _this9.manager.init(container.offsetWidth, container.offsetHeight, google.ima.ViewMode.NORMAL);
-
-                        // Call play to start showing the ad. Single video and overlay ads will
-                        // start at this time; the call will be ignored for ad rules
-                        _this9.manager.start();
-                    }
-
-                    _this9.initialized = true;
-                } catch (adError) {
-                    // An error may be thrown if there was a problem with the
-                    // VAST response
-                    _this9.onAdError(adError);
-                }
-            }).catch(function () {});
-        }
-
-        /**
-         * Resume our video
-         */
-
-    }, {
-        key: 'resumeContent',
-        value: function resumeContent() {
-            // Hide the advertisement container
-            this.elements.container.style.zIndex = '';
-
-            // Ad is stopped
-            this.playing = false;
-
-            // Play our video
-            if (this.player.currentTime < this.player.duration) {
-                this.player.play();
-            }
-        }
-
-        /**
-         * Pause our video
-         */
-
-    }, {
-        key: 'pauseContent',
-        value: function pauseContent() {
-            // Show the advertisement container
-            this.elements.container.style.zIndex = 3;
-
-            // Ad is playing.
-            this.playing = true;
-
-            // Pause our video.
-            this.player.pause();
-        }
-
-        /**
-         * Destroy the adsManager so we can grab new ads after this. If we don't then we're not
-         * allowed to call new ads based on google policies, as they interpret this as an accidental
-         * video requests. https://developers.google.com/interactive-
-         * media-ads/docs/sdks/android/faq#8
-         */
-
-    }, {
-        key: 'cancel',
-        value: function cancel() {
-            // Pause our video
-            if (this.initialized) {
-                this.resumeContent();
-            }
-
-            // Tell our instance that we're done for now
-            this.trigger('error');
-
-            // Re-create our adsManager
-            this.loadAds();
-        }
-
-        /**
-         * Re-create our adsManager
-         */
-
-    }, {
-        key: 'loadAds',
-        value: function loadAds() {
-            var _this10 = this;
-
-            // Tell our adsManager to go bye bye
-            this.managerPromise.then(function () {
-                // Destroy our adsManager
-                if (_this10.manager) {
-                    _this10.manager.destroy();
-                }
-
-                // Re-set our adsManager promises
-                _this10.managerPromise = new Promise(function (resolve) {
-                    _this10.on('loaded', resolve);
-                    _this10.player.debug.log(_this10.manager);
-                });
-
-                // Now request some new advertisements
-                _this10.requestAds();
-            }).catch(function () {});
-        }
-
-        /**
-         * Handles callbacks after an ad event was invoked
-         * @param {string} event - Event type
-         */
-
-    }, {
-        key: 'trigger',
-        value: function trigger(event) {
-            var _this11 = this;
-
-            for (var _len = arguments.length, args = Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
-                args[_key - 1] = arguments[_key];
-            }
-
-            var handlers = this.events[event];
-
-            if (utils.is.array(handlers)) {
-                handlers.forEach(function (handler) {
-                    if (utils.is.function(handler)) {
-                        handler.apply(_this11, args);
-                    }
-                });
-            }
-        }
-
-        /**
-         * Add event listeners
-         * @param {string} event - Event type
-         * @param {function} callback - Callback for when event occurs
-         * @return {Ads}
-         */
-
-    }, {
-        key: 'on',
-        value: function on(event, callback) {
-            if (!utils.is.array(this.events[event])) {
-                this.events[event] = [];
-            }
-
-            this.events[event].push(callback);
-
-            return this;
-        }
-
-        /**
-         * Setup a safety timer for when the ad network doesn't respond for whatever reason.
-         * The advertisement has 12 seconds to get its things together. We stop this timer when the
-         * advertisement is playing, or when a user action is required to start, then we clear the
-         * timer on ad ready
-         * @param {number} time
-         * @param {string} from
-         */
-
-    }, {
-        key: 'startSafetyTimer',
-        value: function startSafetyTimer(time, from) {
-            var _this12 = this;
-
-            this.player.debug.log('Safety timer invoked from: ' + from);
-
-            this.safetyTimer = setTimeout(function () {
-                _this12.cancel();
-                _this12.clearSafetyTimer('startSafetyTimer()');
-            }, time);
-        }
-
-        /**
-         * Clear our safety timer(s)
-         * @param {string} from
-         */
-
-    }, {
-        key: 'clearSafetyTimer',
-        value: function clearSafetyTimer(from) {
-            if (!utils.is.nullOrUndefined(this.safetyTimer)) {
-                this.player.debug.log('Safety timer cleared from: ' + from);
-
-                clearTimeout(this.safetyTimer);
-                this.safetyTimer = null;
-            }
-        }
-    }, {
-        key: 'enabled',
-        get: function get$$1() {
-            return this.player.isVideo && this.player.config.ads.enabled && !utils.is.empty(this.publisherId);
-        }
-    }, {
-        key: 'tagUrl',
-        get: function get$$1() {
-            var params = {
-                AV_PUBLISHERID: '58c25bb0073ef448b1087ad6',
-                AV_CHANNELID: '5a0458dc28a06145e4519d21',
-                AV_URL: location.hostname,
-                cb: Date.now(),
-                AV_WIDTH: 640,
-                AV_HEIGHT: 480,
-                AV_CDIM2: this.publisherId
-            };
-
-            var base = 'https://go.aniview.com/api/adserver6/vast/';
-
-            return base + '?' + utils.buildUrlParams(params);
-        }
-    }]);
-    return Ads;
-}();
-
-// ==========================================================================
-
 var source = {
     // Add elements to HTML5 media (source, tracks, etc)
     insertElements: function insertElements(type, attributes) {
@@ -6896,7 +6905,7 @@ var Plyr = function () {
         }
 
         // Set config
-        this.config = utils.extend({}, defaults$1, Plyr.defaults, options || {}, function () {
+        this.config = utils.extend({}, defaults, options || {}, function () {
             try {
                 return JSON.parse(_this.media.getAttribute('data-plyr-config'));
             } catch (e) {
@@ -6971,9 +6980,17 @@ var Plyr = function () {
         }
 
         // Cache original element state for .destroy()
-        var clone = this.media.cloneNode(true);
-        clone.autoplay = false;
-        this.elements.original = clone;
+        // TODO: Investigate a better solution as I suspect this causes reported double load issues?
+        setTimeout(function () {
+            var clone = _this.media.cloneNode(true);
+
+            // Prevent the clone autoplaying
+            if (clone.getAttribute('autoplay')) {
+                clone.pause();
+            }
+
+            _this.elements.original = clone;
+        }, 0);
 
         // Set media type based on tag or data attribute
         // Supported: video, audio, vimeo, youtube
@@ -7156,6 +7173,11 @@ var Plyr = function () {
                 return null;
             }
 
+            // If ads are enabled, wait for them first
+            /* if (this.ads.enabled && !this.ads.initialized) {
+                return this.ads.managerPromise.then(() => this.ads.play()).catch(() => this.media.play());
+            } */
+
             // Return the promise (for HTML5)
             return this.media.play();
         }
@@ -7175,7 +7197,7 @@ var Plyr = function () {
         }
 
         /**
-         * Get playing state
+         * Get paused state
          */
 
     }, {
@@ -7205,8 +7227,7 @@ var Plyr = function () {
         key: 'stop',
         value: function stop() {
             if (this.isHTML5) {
-                this.pause();
-                this.restart();
+                this.media.load();
             } else if (utils.is.function(this.media.stop)) {
                 this.media.stop();
             }
@@ -7294,19 +7315,24 @@ var Plyr = function () {
             }
 
             // If the method is called without parameter, toggle based on current value
-            var active = utils.is.boolean(input) ? input : !this.elements.container.classList.contains(this.config.classNames.captions.active);
+            var show = utils.is.boolean(input) ? input : !this.elements.container.classList.contains(this.config.classNames.captions.active);
+
+            // Nothing to change...
+            if (this.captions.active === show) {
+                return;
+            }
+
+            // Set global
+            this.captions.active = show;
 
             // Toggle state
-            utils.toggleState(this.elements.buttons.captions, active);
+            utils.toggleState(this.elements.buttons.captions, this.captions.active);
 
             // Add class hook
-            utils.toggleClass(this.elements.container, this.config.classNames.captions.active, active);
+            utils.toggleClass(this.elements.container, this.config.classNames.captions.active, this.captions.active);
 
-            // Update state and trigger event
-            if (active !== this.captions.active) {
-                this.captions.active = active;
-                utils.dispatchEvent.call(this, this.media, this.captions.active ? 'captionsenabled' : 'captionsdisabled');
-            }
+            // Trigger an event
+            utils.dispatchEvent.call(this, this.media, this.captions.active ? 'captionsenabled' : 'captionsdisabled');
         }
 
         /**
@@ -7331,35 +7357,114 @@ var Plyr = function () {
 
         /**
          * Toggle the player controls
-         * @param {boolean} [toggle] - Whether to show the controls
+         * @param {boolean} toggle - Whether to show the controls
          */
 
     }, {
         key: 'toggleControls',
         value: function toggleControls(toggle) {
-            // Don't toggle if missing UI support or if it's audio
-            if (this.supported.ui && !this.isAudio) {
-                // Get state before change
-                var isHidden = utils.hasClass(this.elements.container, this.config.classNames.hideControls);
+            var _this2 = this;
 
-                // Negate the argument if not undefined since adding the class to hides the controls
-                var force = typeof toggle === 'undefined' ? undefined : !toggle;
-
-                // Apply and get updated state
-                var hiding = utils.toggleClass(this.elements.container, this.config.classNames.hideControls, force);
-
-                // Close menu
-                if (hiding && this.config.controls.includes('settings') && !utils.is.empty(this.config.settings)) {
-                    controls.toggleMenu.call(this, false);
-                }
-                // Trigger event on change
-                if (hiding !== isHidden) {
-                    var eventName = hiding ? 'controlshidden' : 'controlsshown';
-                    utils.dispatchEvent.call(this, this.media, eventName);
-                }
-                return !hiding;
+            // We need controls of course...
+            if (!utils.is.element(this.elements.controls)) {
+                return;
             }
-            return false;
+
+            // Don't hide if no UI support or it's audio
+            if (!this.supported.ui || this.isAudio) {
+                return;
+            }
+
+            var delay = 0;
+            var show = toggle;
+            var isEnterFullscreen = false;
+
+            // Get toggle state if not set
+            if (!utils.is.boolean(toggle)) {
+                if (utils.is.event(toggle)) {
+                    // Is the enter fullscreen event
+                    isEnterFullscreen = toggle.type === 'enterfullscreen';
+
+                    // Events that show the controls
+                    var showEvents = ['touchstart', 'touchmove', 'mouseenter', 'mousemove', 'focusin'];
+
+                    // Events that delay hiding
+                    var delayEvents = ['touchmove', 'touchend', 'mousemove'];
+
+                    // Whether to show controls
+                    show = showEvents.includes(toggle.type);
+
+                    // Delay hiding on move events
+                    if (delayEvents.includes(toggle.type)) {
+                        delay = 2000;
+                    }
+
+                    // Delay a little more for keyboard users
+                    if (!this.touch && toggle.type === 'focusin') {
+                        delay = 3000;
+                        utils.toggleClass(this.elements.controls, this.config.classNames.noTransition, true);
+                    }
+                } else {
+                    show = utils.hasClass(this.elements.container, this.config.classNames.hideControls);
+                }
+            }
+
+            // Clear timer on every call
+            clearTimeout(this.timers.controls);
+
+            // If the mouse is not over the controls, set a timeout to hide them
+            if (show || this.paused || this.loading) {
+                // Check if controls toggled
+                var toggled = utils.toggleClass(this.elements.container, this.config.classNames.hideControls, false);
+
+                // Trigger event
+                if (toggled) {
+                    utils.dispatchEvent.call(this, this.media, 'controlsshown');
+                }
+
+                // Always show controls when paused or if touch
+                if (this.paused || this.loading) {
+                    return;
+                }
+
+                // Delay for hiding on touch
+                if (this.touch) {
+                    delay = 3000;
+                }
+            }
+
+            // If toggle is false or if we're playing (regardless of toggle),
+            // then set the timer to hide the controls
+            if (!show || this.playing) {
+                this.timers.controls = setTimeout(function () {
+                    // We need controls of course...
+                    if (!utils.is.element(_this2.elements.controls)) {
+                        return;
+                    }
+
+                    // If the mouse is over the controls (and not entering fullscreen), bail
+                    if ((_this2.elements.controls.pressed || _this2.elements.controls.hover) && !isEnterFullscreen) {
+                        return;
+                    }
+
+                    // Restore transition behaviour
+                    if (!utils.hasClass(_this2.elements.container, _this2.config.classNames.hideControls)) {
+                        utils.toggleClass(_this2.elements.controls, _this2.config.classNames.noTransition, false);
+                    }
+
+                    // Set hideControls class
+                    var toggled = utils.toggleClass(_this2.elements.container, _this2.config.classNames.hideControls, _this2.config.hideControls);
+
+                    // Trigger event and close menu
+                    if (toggled) {
+                        utils.dispatchEvent.call(_this2, _this2.media, 'controlshidden');
+
+                        if (_this2.config.controls.includes('settings') && !utils.is.empty(_this2.config.settings)) {
+                            controls.toggleMenu.call(_this2, false);
+                        }
+                    }
+                }, delay);
+            }
         }
 
         /**
@@ -7397,7 +7502,7 @@ var Plyr = function () {
     }, {
         key: 'destroy',
         value: function destroy(callback) {
-            var _this2 = this;
+            var _this3 = this;
 
             var soft = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
 
@@ -7410,22 +7515,22 @@ var Plyr = function () {
                 document.body.style.overflow = '';
 
                 // GC for embed
-                _this2.embed = null;
+                _this3.embed = null;
 
                 // If it's a soft destroy, make minimal changes
                 if (soft) {
-                    if (Object.keys(_this2.elements).length) {
+                    if (Object.keys(_this3.elements).length) {
                         // Remove elements
-                        utils.removeElement(_this2.elements.buttons.play);
-                        utils.removeElement(_this2.elements.captions);
-                        utils.removeElement(_this2.elements.controls);
-                        utils.removeElement(_this2.elements.wrapper);
+                        utils.removeElement(_this3.elements.buttons.play);
+                        utils.removeElement(_this3.elements.captions);
+                        utils.removeElement(_this3.elements.controls);
+                        utils.removeElement(_this3.elements.wrapper);
 
                         // Clear for GC
-                        _this2.elements.buttons.play = null;
-                        _this2.elements.captions = null;
-                        _this2.elements.controls = null;
-                        _this2.elements.wrapper = null;
+                        _this3.elements.buttons.play = null;
+                        _this3.elements.captions = null;
+                        _this3.elements.controls = null;
+                        _this3.elements.wrapper = null;
                     }
 
                     // Callback
@@ -7434,26 +7539,35 @@ var Plyr = function () {
                     }
                 } else {
                     // Unbind listeners
-                    _this2.listeners.clear();
+                    _this3.listeners.clear();
 
                     // Replace the container with the original element provided
-                    utils.replaceElement(_this2.elements.original, _this2.elements.container);
+                    utils.replaceElement(_this3.elements.original, _this3.elements.container);
 
                     // Event
-                    utils.dispatchEvent.call(_this2, _this2.elements.original, 'destroyed', true);
+                    utils.dispatchEvent.call(_this3, _this3.elements.original, 'destroyed', true);
 
                     // Callback
                     if (utils.is.function(callback)) {
-                        callback.call(_this2.elements.original);
+                        callback.call(_this3.elements.original);
                     }
 
+                    utils.elementsWithListeners.forEach(function (_ref) {
+                        var elements = _ref.elements,
+                            type = _ref.type,
+                            callback = _ref.callback,
+                            options = _ref.options;
+
+                        elements.removeEventListener(type, callback, options);
+                    });
+
                     // Reset state
-                    _this2.ready = false;
+                    _this3.ready = false;
 
                     // Clear for garbage collection
                     setTimeout(function () {
-                        _this2.elements = null;
-                        _this2.media = null;
+                        _this3.elements = null;
+                        _this3.media = null;
                     }, 200);
                 }
             };
@@ -7557,29 +7671,19 @@ var Plyr = function () {
             return Boolean(this.type === types.audio);
         }
     }, {
-        key: 'playing',
-        get: function get$$1() {
-            return Boolean(this.ready && !this.paused && !this.ended);
-        }
-
-        /**
-         * Get paused state
-         */
-
-    }, {
         key: 'paused',
         get: function get$$1() {
             return Boolean(this.media.paused);
         }
 
         /**
-         * Get stopped state
+         * Get playing state
          */
 
     }, {
-        key: 'stopped',
+        key: 'playing',
         get: function get$$1() {
-            return Boolean(this.paused && this.currentTime === 0);
+            return Boolean(this.ready && !this.paused && !this.ended && (this.isHTML5 ? this.media.readyState > 2 : true));
         }
 
         /**
@@ -7594,16 +7698,21 @@ var Plyr = function () {
     }, {
         key: 'currentTime',
         set: function set$$1(input) {
-            // Bail if media duration isn't available yet
-            if (!this.duration) {
-                return;
+            var targetTime = 0;
+
+            if (utils.is.number(input)) {
+                targetTime = input;
             }
 
-            // Validate input
-            var inputIsValid = utils.is.number(input) && input > 0;
+            // Normalise targetTime
+            if (targetTime < 0) {
+                targetTime = 0;
+            } else if (targetTime > this.duration) {
+                targetTime = this.duration;
+            }
 
             // Set
-            this.media.currentTime = inputIsValid ? Math.min(input, this.duration) : 0;
+            this.media.currentTime = targetTime;
 
             // Logging
             this.debug.log('Seeking to ' + this.currentTime + ' seconds');
@@ -7662,11 +7771,11 @@ var Plyr = function () {
             // Faux duration set via config
             var fauxDuration = parseFloat(this.config.duration);
 
-            // Media duration can be NaN before the media has loaded
-            var duration = (this.media || {}).duration || 0;
+            // True duration
+            var realDuration = this.media ? Number(this.media.duration) : 0;
 
-            // If config duration is funky, use regular duration
-            return fauxDuration || duration;
+            // If custom duration is funky, use regular duration
+            return !Number.isNaN(fauxDuration) ? fauxDuration : realDuration;
         }
 
         /**
@@ -7838,7 +7947,7 @@ var Plyr = function () {
                 quality = Number(input);
             }
 
-            if (!utils.is.number(quality)) {
+            if (!utils.is.number(quality) || quality === 0) {
                 quality = this.storage.get('quality');
             }
 
@@ -7955,19 +8064,21 @@ var Plyr = function () {
         }
 
         /**
-         * Set the poster image for a video
+         * Set the poster image for a HTML5 video
          * @param {input} - the URL for the new poster image
          */
 
     }, {
         key: 'poster',
         set: function set$$1(input) {
-            if (!this.isVideo) {
-                this.debug.warn('Poster can only be set for video');
+            if (!this.isHTML5 || !this.isVideo) {
+                this.debug.warn('Poster can only be set on HTML5 video');
                 return;
             }
 
-            ui.setPoster.call(this, input);
+            if (utils.is.string(input)) {
+                this.media.setAttribute('poster', input);
+            }
         }
 
         /**
@@ -7975,7 +8086,7 @@ var Plyr = function () {
          */
         ,
         get: function get$$1() {
-            if (!this.isVideo) {
+            if (!this.isHTML5 || !this.isVideo) {
                 return null;
             }
 
@@ -8112,43 +8223,9 @@ var Plyr = function () {
         value: function loadSprite(url, id) {
             return utils.loadSprite(url, id);
         }
-
-        /**
-         * Setup multiple instances
-         * @param {*} selector
-         * @param {object} options
-         */
-
-    }, {
-        key: 'setup',
-        value: function setup(selector) {
-            var options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
-
-            var targets = null;
-
-            if (utils.is.string(selector)) {
-                targets = Array.from(document.querySelectorAll(selector));
-            } else if (utils.is.nodeList(selector)) {
-                targets = Array.from(selector);
-            } else if (utils.is.array(selector)) {
-                targets = selector.filter(function (i) {
-                    return utils.is.element(i);
-                });
-            }
-
-            if (utils.is.empty(targets)) {
-                return null;
-            }
-
-            return targets.map(function (t) {
-                return new Plyr(t, options);
-            });
-        }
     }]);
     return Plyr;
 }();
-
-Plyr.defaults = utils.cloneDeep(defaults$1);
 
 return Plyr;
 
