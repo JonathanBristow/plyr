@@ -3,13 +3,16 @@
 // ==========================================================================
 
 import loadjs from 'loadjs';
-import Storage from './storage';
+
 import support from './support';
 import { providers } from './types';
 
 const utils = {
     // Check variable types
     is: {
+        plyr(input) {
+            return this.instanceof(input, window.Plyr);
+        },
         object(input) {
             return this.getConstructor(input) === Object;
         },
@@ -29,19 +32,19 @@ const utils = {
             return !this.nullOrUndefined(input) && Array.isArray(input);
         },
         weakMap(input) {
-            return this.instanceof(input, WeakMap);
+            return this.instanceof(input, window.WeakMap);
         },
         nodeList(input) {
-            return this.instanceof(input, NodeList);
+            return this.instanceof(input, window.NodeList);
         },
         element(input) {
-            return this.instanceof(input, Element);
+            return this.instanceof(input, window.Element);
         },
         textNode(input) {
             return this.getConstructor(input) === Text;
         },
         event(input) {
-            return this.instanceof(input, Event);
+            return this.instanceof(input, window.Event);
         },
         cue(input) {
             return this.instanceof(input, window.TextTrackCue) || this.instanceof(input, window.VTTCue);
@@ -120,21 +123,6 @@ const utils = {
         });
     },
 
-    // Load image avoiding xhr/fetch CORS issues
-    // Server status can't be obtained this way unfortunately, so this uses "naturalWidth" to determine if the image has loaded.
-    // By default it checks if it is at least 1px, but you can add a second argument to change this.
-    loadImage(src, minWidth = 1) {
-        return new Promise((resolve, reject) => {
-            const image = new Image();
-            const handler = () => {
-                delete image.onload;
-                delete image.onerror;
-                (image.naturalWidth >= minWidth ? resolve : reject)(image);
-            };
-            Object.assign(image, {onload: handler, onerror: handler, src});
-        });
-    },
-
     // Load an external script
     loadScript(url) {
         return new Promise((resolve, reject) => {
@@ -172,8 +160,6 @@ const utils = {
 
         // Only load once if ID set
         if (!hasId || !exists()) {
-            const useStorage = Storage.supported;
-
             // Create container
             const container = document.createElement('div');
             utils.toggleHidden(container, true);
@@ -183,7 +169,7 @@ const utils = {
             }
 
             // Check in cache
-            if (useStorage) {
+            if (support.storage) {
                 const cached = window.localStorage.getItem(prefix + id);
                 isCached = cached !== null;
 
@@ -202,7 +188,7 @@ const utils = {
                         return;
                     }
 
-                    if (useStorage) {
+                    if (support.storage) {
                         window.localStorage.setItem(
                             prefix + id,
                             JSON.stringify({
@@ -265,7 +251,7 @@ const utils = {
 
         // Add text node
         if (utils.is.string(text)) {
-            element.innerText = text;
+            element.textContent = text;
         }
 
         // Return built element
@@ -283,14 +269,14 @@ const utils = {
         parent.appendChild(utils.createElement(type, attributes, text));
     },
 
-    // Remove element(s)
+    // Remove an element
     removeElement(element) {
-        if (utils.is.nodeList(element) || utils.is.array(element)) {
-            Array.from(element).forEach(utils.removeElement);
+        if (!utils.is.element(element) || !utils.is.element(element.parentNode)) {
             return;
         }
 
-        if (!utils.is.element(element) || !utils.is.element(element.parentNode)) {
+        if (utils.is.nodeList(element) || utils.is.array(element)) {
+            Array.from(element).forEach(utils.removeElement);
             return;
         }
 
@@ -408,16 +394,14 @@ const utils = {
         }
     },
 
-    // Mirror Element.classList.toggle, with IE compatibility for "force" argument
-    toggleClass(element, className, force) {
+    // Toggle class on an element
+    toggleClass(element, className, toggle) {
         if (utils.is.element(element)) {
-            let method = 'toggle';
-            if (typeof force !== 'undefined') {
-                method = force ? 'add' : 'remove';
-            }
+            const contains = element.classList.contains(className);
 
-            element.classList[method](className);
-            return element.classList.contains(className);
+            element.classList[toggle ? 'add' : 'remove'](className);
+
+            return (toggle && !contains) || (!toggle && contains);
         }
 
         return null;
@@ -449,6 +433,60 @@ const utils = {
     // Find a single element
     getElement(selector) {
         return this.elements.container.querySelector(selector);
+    },
+
+    // Find the UI controls and store references in custom controls
+    // TODO: Allow settings menus with custom controls
+    findElements() {
+        try {
+            this.elements.controls = utils.getElement.call(this, this.config.selectors.controls.wrapper);
+
+            // Buttons
+            this.elements.buttons = {
+                play: utils.getElements.call(this, this.config.selectors.buttons.play),
+                pause: utils.getElement.call(this, this.config.selectors.buttons.pause),
+                restart: utils.getElement.call(this, this.config.selectors.buttons.restart),
+                rewind: utils.getElement.call(this, this.config.selectors.buttons.rewind),
+                fastForward: utils.getElement.call(this, this.config.selectors.buttons.fastForward),
+                mute: utils.getElement.call(this, this.config.selectors.buttons.mute),
+                pip: utils.getElement.call(this, this.config.selectors.buttons.pip),
+                airplay: utils.getElement.call(this, this.config.selectors.buttons.airplay),
+                settings: utils.getElement.call(this, this.config.selectors.buttons.settings),
+                captions: utils.getElement.call(this, this.config.selectors.buttons.captions),
+                fullscreen: utils.getElement.call(this, this.config.selectors.buttons.fullscreen),
+            };
+
+            // Progress
+            this.elements.progress = utils.getElement.call(this, this.config.selectors.progress);
+
+            // Inputs
+            this.elements.inputs = {
+                seek: utils.getElement.call(this, this.config.selectors.inputs.seek),
+                volume: utils.getElement.call(this, this.config.selectors.inputs.volume),
+            };
+
+            // Display
+            this.elements.display = {
+                buffer: utils.getElement.call(this, this.config.selectors.display.buffer),
+                currentTime: utils.getElement.call(this, this.config.selectors.display.currentTime),
+                duration: utils.getElement.call(this, this.config.selectors.display.duration),
+            };
+
+            // Seek tooltip
+            if (utils.is.element(this.elements.progress)) {
+                this.elements.display.seekTooltip = this.elements.progress.querySelector(`.${this.config.classNames.tooltip}`);
+            }
+
+            return true;
+        } catch (error) {
+            // Log it
+            this.debug.warn('It looks like there is a problem with your custom controls HTML', error);
+
+            // Restore native video controls
+            this.toggleNativeControls(true);
+
+            return false;
+        }
     },
 
     // Get the focused element
@@ -539,6 +577,9 @@ const utils = {
 
         // If a single node is passed, bind the event listener
         events.forEach(type => {
+            if (!utils.elementsWithListeners) utils.elementsWithListeners = []
+            if (toggle) utils.elementsWithListeners.push({ elements, type, callback, options })
+
             elements[toggle ? 'addEventListener' : 'removeEventListener'](type, callback, options);
         });
     },
@@ -564,7 +605,7 @@ const utils = {
         const event = new CustomEvent(type, {
             bubbles,
             detail: Object.assign({}, detail, {
-                plyr: this,
+                plyr: utils.is.plyr(this) ? this : null,
             }),
         });
 
@@ -592,15 +633,6 @@ const utils = {
 
         // Set the attribute on target
         element.setAttribute('aria-pressed', state);
-    },
-
-    // Format string
-    format(input, ...args) {
-        if (utils.is.empty(input)) {
-            return input;
-        }
-
-        return input.toString().replace(/{(\d+)}/g, (match, i) => (utils.is.string(args[i]) ? args[i] : ''));
     },
 
     // Get percentage
@@ -723,16 +755,6 @@ const utils = {
         return array.filter((item, index) => array.indexOf(item) === index);
     },
 
-    // Clone nested objects
-    cloneDeep(object) {
-        return JSON.parse(JSON.stringify(object));
-    },
-
-    // Get a nested value in an object
-    getDeep(object, path) {
-        return path.split('.').reduce((obj, key) => obj && obj[key], object);
-    },
-
     // Get the closest value in an array
     closest(array, value) {
         if (!utils.is.array(array) || !array.length) {
@@ -750,7 +772,7 @@ const utils = {
         }
 
         // Vimeo
-        if (/^https?:\/\/player.vimeo.com\/video\/\d{0,9}(?=\b|\/)/.test(url)) {
+        if (/^https?:\/\/player.vimeo.com\/video\/\d{8,}(?=\b|\/)/.test(url)) {
             return providers.vimeo;
         }
 
